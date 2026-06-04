@@ -11,9 +11,12 @@
 // LICENCE: Licence.md
 
 import { computeVerticesIndexArray } from './setFromGeometry';
-import { 
-  CylinderGeometry, 
-  BoxGeometry, 
+import {
+  CylinderGeometry,
+  BoxGeometry,
+  PlaneGeometry,
+  SphereGeometry,
+  TorusGeometry,
   BufferAttribute, BufferGeometry} from 'three';
 import { generatorSize } from '../utils/testutils';
 import { HalfedgeDS } from '../core/HalfedgeDS';
@@ -209,6 +212,226 @@ describe("Check merge of vertices", () => {
     expect(idxArray).toHaveLength(2);
     expect(idxArray[0]).toBe(0);
     expect(idxArray[1]).toBe(1);
+  });
+
+});
+
+describe("Indexed geometry", () => {
+
+  test("BoxGeometry with index buffer produces correct structure", () => {
+    // BoxGeometry(1,1,1) uses an index buffer internally
+    const geometry = new BoxGeometry(1, 1, 1);
+    expect(geometry.getIndex()).not.toBeNull();
+
+    struct.setFromGeometry(geometry);
+
+    // A unit cube: 12 triangles, 18 unique edges, 8 vertices
+    expect(struct.faces).toHaveLength(12);
+    expect(struct.halfedges).toHaveLength(18 * 2);
+    expect(struct.vertices).toHaveLength(8);
+  });
+
+  test("Indexed box has valid topology", () => {
+    const geometry = new BoxGeometry(1, 1, 1);
+    struct.setFromGeometry(geometry);
+
+    // Validate halfedge consistency
+    for (const halfedge of struct.halfedges) {
+      expect(halfedge.twin.twin).toBe(halfedge);
+      expect(halfedge.next.prev).toBe(halfedge);
+      expect(halfedge.prev.next).toBe(halfedge);
+    }
+  });
+
+});
+
+describe("Three.js primitives", () => {
+
+  describe("PlaneGeometry(1,1,1,1)", () => {
+    const geometry = new PlaneGeometry(1, 1, 1, 1);
+
+    beforeAll(() => {
+      struct.setFromGeometry(geometry);
+    });
+
+    test("correct counts", () => {
+      // PlaneGeometry(1,1,1,1): 2 triangles, 5 edges, 4 vertices
+      expect(struct.faces).toHaveLength(2);
+      expect(struct.halfedges).toHaveLength(5 * 2);
+      expect(struct.vertices).toHaveLength(4);
+    });
+
+    test("1 boundary loop", () => {
+      let boundaryLoops = 0;
+      for (const loop of struct.loops()) {
+        if (!loop.face) {
+          boundaryLoops++;
+        }
+      }
+      expect(boundaryLoops).toBe(1);
+    });
+
+    test("valid topology", () => {
+      for (const halfedge of struct.halfedges) {
+        expect(halfedge.twin.twin).toBe(halfedge);
+        expect(halfedge.next.prev).toBe(halfedge);
+        expect(halfedge.prev.next).toBe(halfedge);
+      }
+    });
+  });
+
+  describe("SphereGeometry(1,4,3)", () => {
+    const geometry = new SphereGeometry(1, 4, 3);
+
+    beforeAll(() => {
+      struct.setFromGeometry(geometry);
+    });
+
+    test("closed mesh has no boundary loops", () => {
+      let boundaryLoops = 0;
+      for (const loop of struct.loops()) {
+        if (!loop.face) {
+          boundaryLoops++;
+        }
+      }
+      expect(boundaryLoops).toBe(0);
+    });
+
+    test("all faces have valid loops", () => {
+      for (const face of struct.faces) {
+        const loopSize = generatorSize(face.halfedge.nextLoop());
+        expect(loopSize).toBe(3);
+      }
+    });
+  });
+
+  describe("TorusGeometry(1,0.4,4,6)", () => {
+    const geometry = new TorusGeometry(1, 0.4, 4, 6);
+
+    beforeAll(() => {
+      struct.setFromGeometry(geometry);
+    });
+
+    test("closed mesh has no boundary loops", () => {
+      let boundaryLoops = 0;
+      for (const loop of struct.loops()) {
+        if (!loop.face) {
+          boundaryLoops++;
+        }
+      }
+      expect(boundaryLoops).toBe(0);
+    });
+
+    test("all faces have valid loops", () => {
+      for (const face of struct.faces) {
+        const loopSize = generatorSize(face.halfedge.nextLoop());
+        expect(loopSize).toBe(3);
+      }
+    });
+  });
+
+});
+
+describe("Vertex merging tolerance", () => {
+
+  test("vertices within tolerance are merged", () => {
+    // Two vertices that are very close together
+    const array = new Float32Array([
+      0, 0, 0,
+      1, 0, 0,
+      0, 1, 0,
+      0, 0, 0.0001,  // close to (0,0,0)
+      1, 0, 0,
+      0, 0, 0,
+    ]);
+    const buffer = new BufferAttribute(array, 3);
+    const idxArray = computeVerticesIndexArray(buffer, 1e-2);
+
+    // Within tolerance, the 4th vertex should be merged with the 1st
+    expect(idxArray[0]).toBe(0);
+    expect(idxArray[3]).toBe(0);
+  });
+
+  test("vertices outside tolerance remain separate", () => {
+    const array = new Float32Array([
+      0, 0, 0,
+      1, 0, 0,
+      0, 1, 0,
+      5, 5, 5,  // far from any other vertex
+    ]);
+    const buffer = new BufferAttribute(array, 3);
+    const idxArray = computeVerticesIndexArray(buffer, 1e-2);
+
+    // The 4th vertex should not be merged with any other
+    expect(idxArray[3]).toBe(3);
+  });
+
+  test("setFromGeometry respects tolerance", () => {
+    // Two triangles sharing a "close enough" edge with tolerance
+    const array = new Float32Array([
+      0, 0, 0,
+      1, 0, 0,
+      0, 1, 0,
+
+      0, 0, 0.0001,  // should merge with (0,0,0) under tolerance 0.01
+      2, 0, 0,
+      1, 0, 0,
+    ]);
+    const buffer = new BufferAttribute(array, 3);
+    const geometry = new BufferGeometry();
+    geometry.setAttribute('position', buffer);
+
+    struct.setFromGeometry(geometry, 0.01);
+
+    // With merging, the close vertex positions should collapse
+    // so we get fewer vertices than the raw 6 positions
+    expect(struct.vertices.length).toBeLessThan(6);
+  });
+
+});
+
+describe("Degenerate inputs", () => {
+
+  test("zero-area triangle (collinear vertices) still builds structure", () => {
+    // Three collinear points: area = 0
+    const array = new Float32Array([0, 0, 0, 1, 0, 0, 2, 0, 0]);
+    const buffer = new BufferAttribute(array, 3);
+    const geometry = new BufferGeometry();
+    geometry.setAttribute('position', buffer);
+
+    struct.setFromGeometry(geometry);
+
+    // Should still create a valid structure with 1 face, 3 vertices, 3 edges
+    expect(struct.faces).toHaveLength(1);
+    expect(struct.vertices).toHaveLength(3);
+    expect(struct.halfedges).toHaveLength(3 * 2);
+  });
+
+  test("single triangle is minimal valid case", () => {
+    const array = new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]);
+    const buffer = new BufferAttribute(array, 3);
+    const geometry = new BufferGeometry();
+    geometry.setAttribute('position', buffer);
+
+    struct.setFromGeometry(geometry);
+
+    expect(struct.faces).toHaveLength(1);
+    expect(struct.vertices).toHaveLength(3);
+    expect(struct.halfedges).toHaveLength(3 * 2);
+
+    // Validate topology
+    for (const halfedge of struct.halfedges) {
+      expect(halfedge.twin.twin).toBe(halfedge);
+      expect(halfedge.next.prev).toBe(halfedge);
+      expect(halfedge.prev.next).toBe(halfedge);
+    }
+
+    // All face halfedges share the same face
+    for (const face of struct.faces) {
+      for (const halfedge of face.halfedge.nextLoop()) {
+        expect(halfedge.face).toBe(face);
+      }
+    }
   });
 
 });
