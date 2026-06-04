@@ -30,9 +30,9 @@ const lib_cfg = {
         "sourceMap": true,
         "declaration": true,
         "declarationMap": true,
-        "declarationDir": "types",
+        "declarationDir": "build/types",
       },
-      exclude: ["examples/*", "node_modules"],
+      exclude: ["examples/*", "node_modules", "**/*.test.ts", "src/setuptests.ts", "src/utils/testutils.ts", "src/utils/fixtures.ts", "src/utils/topologyValidation.ts"],
       noEmitOnError: !env.ROLLUP_WATCH,
     })
   ]

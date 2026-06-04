@@ -10,17 +10,21 @@
     "strict": true,
     "target": "esnext",
     "module": "esnext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
+    "ignoreDeprecations": "6.0",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "allowSyntheticDefaultImports": true,
+    "rootDir": "./src",
     "lib": [
       "dom",
       "es2021",
     ],
+    "types": [
+      "vitest/globals"
+    ],
   },
   "include": [
-    "./src",
-    "./examples"
+    "./src"
   ],
 }
