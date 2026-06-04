@@ -19,7 +19,7 @@ import { HalfedgeDS } from "../core/HalfedgeDS";
 export function addFace(struct: HalfedgeDS, halfedges: Halfedge[]) {
 
   const size = halfedges.length;
-  if (size < 2) {
+  if (size < 3) {
     throw new Error("At least 3 halfedges required to build a face.");
   }
 

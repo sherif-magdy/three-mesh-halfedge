@@ -42,7 +42,7 @@ export class Face {
       this.halfedge.vertex.position,
       this.halfedge.next.vertex.position
     );
-    _triangle.getNormal(target);
+    _triangle.getMidpoint(target);
   }
 
   /**

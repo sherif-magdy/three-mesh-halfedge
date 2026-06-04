@@ -101,7 +101,7 @@ export class Halfedge {
     let curr: Halfedge = start;
     do {
       yield curr;
-      curr = curr.next;
+      curr = curr.prev;
     } while(curr !== start);
     return null;
   }
