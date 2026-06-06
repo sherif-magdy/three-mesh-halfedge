@@ -1,5 +1,5 @@
 {
-  "name": "@sherif-magdy/three-mesh-halfedge",
+  "name": "@sherifmagdy/three-mesh-halfedge",
   "description": "A typescript implementation of the Halfedge structure for three.js geometries.",
   "keywords": [
     "threejs",
@@ -8,7 +8,7 @@
     "csg",
     "halfedge"
   ],
-  "version": "1.0.5",
+  "version": "1.0.6",
   "author": {
     "name": "Axel Antoine",
     "email": "ax.antoine@gmail.com",
