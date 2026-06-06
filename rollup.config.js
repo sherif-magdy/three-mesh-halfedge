@@ -31,6 +31,7 @@ const lib_cfg = {
         "declaration": true,
         "declarationMap": true,
         "declarationDir": "build/types",
+        "rootDir": "src",
       },
       exclude: ["examples/*", "node_modules", "tests"],
       noEmitOnError: !env.ROLLUP_WATCH,
