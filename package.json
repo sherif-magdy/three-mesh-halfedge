@@ -1,5 +1,5 @@
 {
-  "name": "three-mesh-halfedge",
+  "name": "@sherif-magdy/three-mesh-halfedge",
   "description": "A typescript implementation of the Halfedge structure for three.js geometries.",
   "keywords": [
     "threejs",
@@ -8,7 +8,7 @@
     "csg",
     "halfedge"
   ],
-  "version": "1.0.4",
+  "version": "1.0.5",
   "author": {
     "name": "Axel Antoine",
     "email": "ax.antoine@gmail.com",
@@ -26,9 +26,9 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/LokiResearch/three-mesh-halfedge.git"
+    "url": "git+https://github.com/sherif-magdy/three-mesh-halfedge.git"
   },
-  "homepage": "https://lokiresearch.github.io/three-mesh-halfedge/",
+  "homepage": "https://github.com/sherif-magdy/three-mesh-halfedge#readme",
   "scripts": {
     "build": "rollup -c",
     "build-examples": "rollup -c --environment examples",
