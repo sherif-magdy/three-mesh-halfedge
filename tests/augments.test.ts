@@ -1,4 +1,4 @@
-import './augments';
+import '../src/augments';
 
 describe('Array.prototype.clear', () => {
 

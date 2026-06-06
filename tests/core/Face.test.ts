@@ -1,5 +1,5 @@
 import { Vector3 } from 'three';
-import { createSingleTriangle } from '../utils/fixtures';
+import { createSingleTriangle } from '../helpers/fixtures';
 
 describe('Face', () => {
 

@@ -15,7 +15,8 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "allowSyntheticDefaultImports": true,
-    "rootDir": "./src",
+    "rootDir": ".",
+    "baseUrl": ".",
     "lib": [
       "dom",
       "es2021",
@@ -25,6 +26,7 @@
     ],
   },
   "include": [
-    "./src"
+    "./src",
+    "./tests"
   ],
 }

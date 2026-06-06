@@ -1,6 +1,6 @@
-import { Face } from '../core/Face';
-import { removeFace } from './removeFace';
-import { createSingleTriangle, createDoubleTriangle } from '../utils/fixtures';
+import { Face } from '../../src/core/Face';
+import { removeFace } from '../../src/operations/removeFace';
+import { createSingleTriangle, createDoubleTriangle } from '../helpers/fixtures';
 
 describe('removeFace', () => {
 

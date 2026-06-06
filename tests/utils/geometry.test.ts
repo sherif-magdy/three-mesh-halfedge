@@ -1,5 +1,5 @@
 import { Vector3 } from 'three';
-import { orient3D, frontSide, sameSide } from './geometry';
+import { orient3D, frontSide, sameSide } from '../../src/utils/geometry';
 
 // Triangle in the xy-plane: a=(0,0,0), b=(1,0,0), c=(0,1,0)
 const a = new Vector3(0, 0, 0);

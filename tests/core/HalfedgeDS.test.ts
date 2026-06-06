@@ -1,8 +1,8 @@
 import { Vector3 } from 'three';
 import { BufferGeometry, BoxGeometry } from 'three';
-import { HalfedgeDS } from './HalfedgeDS';
-import { createSingleTriangle, createDoubleTriangle, createOpenFan, createClosedTetrahedron } from '../utils/fixtures';
-import { countBoundaryLoops, countFaceLoops } from '../utils/topologyValidation';
+import { HalfedgeDS } from '../../src/core/HalfedgeDS';
+import { createSingleTriangle, createDoubleTriangle, createOpenFan, createClosedTetrahedron } from '../helpers/fixtures';
+import { countBoundaryLoops, countFaceLoops } from '../helpers/topologyValidation';
 
 describe('HalfedgeDS', () => {
 

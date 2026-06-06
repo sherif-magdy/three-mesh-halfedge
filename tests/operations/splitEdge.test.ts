@@ -3,9 +3,9 @@
  */
 
 import { Vector3 } from 'three';
-import { splitEdge } from './splitEdge';
-import { createSingleTriangle } from '../utils/fixtures';
-import { generatorToArray } from '../utils/testutils';
+import { splitEdge } from '../../src/operations/splitEdge';
+import { createSingleTriangle } from '../helpers/fixtures';
+import { generatorToArray } from '../helpers/testutils';
 
 describe('splitEdge', () => {
 

@@ -5,22 +5,22 @@
  * Created on Mon Nov 14 2022
  *
  * Loki, Inria project-team with Université de Lille
- * within the Joint Research Unit UMR 9189 
- * CNRS - Centrale Lille - Université de Lille, CRIStAL
+ * within the Joint Research Unit UMR 9189
+ * CNRS - Centrale de Lille - Université de Lille, CRIStAL
  * https://loki.lille.inria.fr
  *
  * Licence: Licence.md
  */
 
 import { Vector3 } from "three";
-import { addEdge, } from "../operations/addEdge";
-import { addVertex } from "../operations/addVertex";
-import { removeEdge } from "../operations/removeEdge";
-import { HalfedgeDS } from "./HalfedgeDS";
-import { Vertex } from "./Vertex";
-import { generatorToArray } from "../utils/testutils";
-import { addFace } from "../operations/addFace";
-import { createOpenFan, createClosedTetrahedron, createDoubleTriangle } from "../utils/fixtures";
+import { addEdge, } from "../../src/operations/addEdge";
+import { addVertex } from "../../src/operations/addVertex";
+import { removeEdge } from "../../src/operations/removeEdge";
+import { HalfedgeDS } from "../../src/core/HalfedgeDS";
+import { Vertex } from "../../src/core/Vertex";
+import { generatorToArray } from "../helpers/testutils";
+import { addFace } from "../../src/operations/addFace";
+import { createOpenFan, createClosedTetrahedron, createDoubleTriangle } from "../helpers/fixtures";
 
 const vec_ = new Vector3();
 let v1: Vertex, v2: Vertex, v3: Vertex, v4: Vertex;
@@ -138,7 +138,7 @@ test('Boundary in halfedges loop', () => {
   expect(array).toHaveLength(2);
   expect(array).toContain(v1v2.twin);
   expect(array).toContain(v1v4.twin);
-  
+
   // Close 1-3-4 and 1-4-2 triangles
   const v3v4 = addEdge(struct, v3, v4);
   addFace(struct, [v3v4, v1v4.twin, v1v3]);
@@ -172,7 +172,7 @@ test('Boundary out halfedges loop', () => {
   expect(array).toHaveLength(2);
   expect(array).toContain(v1v3);
   expect(array).toContain(v1v4);
-  
+
   // Close 1-3-4 and 1-4-2 triangles
   const v3v4 = addEdge(struct, v3, v4);
   addFace(struct, [v3v4, v1v4.twin, v1v3]);
@@ -342,4 +342,3 @@ describe("boundaryHalfedgesInLoop", () => {
     expect(generatorToArray(v3.boundaryHalfedgesInLoop())).toHaveLength(0);
   });
 });
-

@@ -1,7 +1,7 @@
 import { Vector3, BoxGeometry } from 'three';
-import { HalfedgeDS } from './HalfedgeDS';
-import { createSingleTriangle, createOpenFan } from '../utils/fixtures';
-import { generatorToArray } from '../utils/testutils';
+import { HalfedgeDS } from '../../src/core/HalfedgeDS';
+import { createSingleTriangle, createOpenFan } from '../helpers/fixtures';
+import { generatorToArray } from '../helpers/testutils';
 
 describe('Halfedge', () => {
 

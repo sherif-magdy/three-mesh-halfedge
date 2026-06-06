@@ -1,7 +1,7 @@
 import { Vector3 } from 'three';
-import { HalfedgeDS } from '../core/HalfedgeDS';
-import { removeEdge } from './removeEdge';
-import { createSingleTriangle, createDoubleTriangle } from '../utils/fixtures';
+import { HalfedgeDS } from '../../src/core/HalfedgeDS';
+import { removeEdge } from '../../src/operations/removeEdge';
+import { createSingleTriangle, createDoubleTriangle } from '../helpers/fixtures';
 
 describe('removeEdge', () => {
 

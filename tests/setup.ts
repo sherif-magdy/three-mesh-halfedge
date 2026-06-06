@@ -6,16 +6,16 @@
  *
  * Loki, Inria project-team with Université de Lille
  * within the Joint Research Unit UMR 9189
- * CNRS - Centrale Lille - Université de Lille, CRIStAL
+ * CNRS - Centrale de Lille - Université de Lille, CRIStAL
  * https://loki.lille.inria.fr
  *
  * Licence: Licence.md
  */
 
 import { expect } from 'vitest';
-import './augments';
-import { Halfedge } from "./core/Halfedge";
-import { Vertex } from "./core/Vertex";
+import '../src/augments';
+import { Halfedge } from "../src/core/Halfedge";
+import { Vertex } from "../src/core/Vertex";
 
 // Extend vitest expect with custom matchers
 declare module 'vitest' {

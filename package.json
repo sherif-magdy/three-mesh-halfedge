@@ -37,7 +37,7 @@
     "dev-examples": "rollup -cw --environment examples",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint src examples",
+    "lint": "eslint src examples tests",
     "lint-examples": "eslint examples",
     "prepublishOnly": "npm run build"
   },

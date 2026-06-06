@@ -4,7 +4,7 @@
  */
 
 import { Vector3 } from 'three';
-import { HalfedgeDS } from '../core/HalfedgeDS';
+import { HalfedgeDS } from '../../src/core/HalfedgeDS';
 
 const _v = new Vector3();
 

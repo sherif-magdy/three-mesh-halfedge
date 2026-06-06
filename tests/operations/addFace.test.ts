@@ -1,7 +1,7 @@
 import { Vector3 } from 'three';
-import { HalfedgeDS } from '../core/HalfedgeDS';
-import { addFace } from './addFace';
-import { createSingleTriangle } from '../utils/fixtures';
+import { HalfedgeDS } from '../../src/core/HalfedgeDS';
+import { addFace } from '../../src/operations/addFace';
+import { createSingleTriangle } from '../helpers/fixtures';
 
 describe('addFace', () => {
 

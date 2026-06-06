@@ -5,27 +5,27 @@
  * Created on Wed Nov 09 2022
  *
  * Loki, Inria project-team with Université de Lille
- * within the Joint Research Unit UMR 9189 
- * CNRS - Centrale Lille - Université de Lille, CRIStAL
+ * within the Joint Research Unit UMR 9189
+ * CNRS - Centrale de Lille - Université de Lille, CRIStAL
  * https://loki.lille.inria.fr
  *
  * Licence: Licence.md
  */
 
 import { Vector3 } from "three";
-import { Halfedge } from "../core/Halfedge";
-import { HalfedgeDS } from "../core/HalfedgeDS";
+import { Halfedge } from "../../src/core/Halfedge";
+import { HalfedgeDS } from "../../src/core/HalfedgeDS";
 
 const position = new Vector3();
 const struct = new HalfedgeDS();
 
 /*
  *       v2
- *       | \ 
- *       |   \ 
- *       |     \ 
+ *       | \
+ *       |   \
+ *       |     \
  *      v0 ----- v1
- */      
+ */
 
 const v0 = struct.addVertex(position.set(0,0,0));
 const v1 = struct.addVertex(position.set(2,0,0));
@@ -43,7 +43,7 @@ test("Link isolated vertices", () => {
   expect(v1v0.prev).toBeHalfedge(v0v1);
   expect(v0.halfedge).toBeHalfedge(v0v1);
   expect(v1.halfedge).toBeHalfedge(v1v0);
-}); 
+});
 
 test("Link to another edge", () => {
   v1v2 = struct.addEdge(v1, v2);
@@ -77,7 +77,7 @@ test("Closing a loop", () => {
  *       |   \   |   \
  *       |     \ |     \
  *      v0 ---- v1 ---- v4
- */  
+ */
 
 const v3 = struct.addVertex(position.set(2,2,0));
 const v4 = struct.addVertex(position.set(4,2,0));

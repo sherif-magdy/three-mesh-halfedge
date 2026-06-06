@@ -5,39 +5,39 @@
  * Created on Thu Nov 17 2022
  *
  * Loki, Inria project-team with Université de Lille
- * within the Joint Research Unit UMR 9189 
- * CNRS - Centrale Lille - Université de Lille, CRIStAL
+ * within the Joint Research Unit UMR 9189
+ * CNRS - Centrale de Lille - Université de Lille, CRIStAL
  * https://loki.lille.inria.fr
  *
  * Licence: Licence.md
  */
 
 import { Vector3 } from "three";
-import { Face } from "../core/Face";
-import { Halfedge } from "../core/Halfedge";
-import { HalfedgeDS } from "../core/HalfedgeDS";
-import { Vertex } from "../core/Vertex";
+import { Face } from "../../src/core/Face";
+import { Halfedge } from "../../src/core/Halfedge";
+import { HalfedgeDS } from "../../src/core/HalfedgeDS";
+import { Vertex } from "../../src/core/Vertex";
 
 /**
- * This is the global topology we are going to use. 
- * Before each test, all vertices exist, and the polygon v0-v3-v1-v7-v2 
- * is set 
- * 
+ * This is the global topology we are going to use.
+ * Before each test, all vertices exist, and the polygon v0-v3-v1-v7-v2
+ * is set
+ *
  *       v2
- *       | \ 
- *       |   \ 
- *       |    v7 
- *       |    |  \ 
- *       |    v6   \ 
- *       |     \     \ 
- *       |      \      \ 
- *       |      v5       \ 
- *       |        \        \ 
- *       |   f0   v4         \ 
- *       |         \     f1    \ 
- *       |          \            \ 
+ *       | \
+ *       |   \
+ *       |    v7
+ *       |    |  \
+ *       |    v6   \
+ *       |     \     \
+ *       |      \      \
+ *       |      v5       \
+ *       |        \        \
+ *       |   f0   v4         \
+ *       |         \     f1    \
+ *       |          \            \
  *      v0 --------- v3 --------- v1
- */   
+ */
 
 const vec = new Vector3();
 const struct = new HalfedgeDS();
@@ -66,7 +66,7 @@ beforeEach(() => {
 
   v7 = struct.splitEdge(v1v2, vec.set(7,7,7));
 
-  v4v5 = struct.addEdge(v4, v5); 
+  v4v5 = struct.addEdge(v4, v5);
 });
 
 
@@ -152,6 +152,3 @@ test("Connect the two cuts", () => {
   }
 
 });
-
-
-

@@ -7,13 +7,13 @@
  */
 
 import { Vector3 } from 'three';
-import { HalfedgeDS } from '../core/HalfedgeDS';
-import { removeVertex } from './removeVertex';
+import { HalfedgeDS } from '../../src/core/HalfedgeDS';
+import { removeVertex } from '../../src/operations/removeVertex';
 import {
   createSingleTriangle,
   createDoubleTriangle,
-} from '../utils/fixtures';
-import { generatorToArray } from '../utils/testutils';
+} from '../helpers/fixtures';
+import { generatorToArray } from '../helpers/testutils';
 
 describe('removeVertex', () => {
 

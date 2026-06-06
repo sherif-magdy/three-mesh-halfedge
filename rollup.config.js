@@ -32,7 +32,7 @@ const lib_cfg = {
         "declarationMap": true,
         "declarationDir": "build/types",
       },
-      exclude: ["examples/*", "node_modules", "**/*.test.ts", "src/setuptests.ts", "src/utils/testutils.ts", "src/utils/fixtures.ts", "src/utils/topologyValidation.ts"],
+      exclude: ["examples/*", "node_modules", "tests"],
       noEmitOnError: !env.ROLLUP_WATCH,
     })
   ]

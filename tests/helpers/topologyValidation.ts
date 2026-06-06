@@ -3,7 +3,7 @@
  * These functions assert structural invariants and can be called inside any test.
  */
 
-import { HalfedgeDS } from '../core/HalfedgeDS';
+import { HalfedgeDS } from '../../src/core/HalfedgeDS';
 import { generatorToArray } from './testutils';
 
 /**

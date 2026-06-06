@@ -5,16 +5,16 @@
  * Created on Wed Nov 09 2022
  *
  * Loki, Inria project-team with Université de Lille
- * within the Joint Research Unit UMR 9189 
- * CNRS - Centrale Lille - Université de Lille, CRIStAL
+ * within the Joint Research Unit UMR 9189
+ * CNRS - Centrale de Lille - Université de Lille, CRIStAL
  * https://loki.lille.inria.fr
  *
  * Licence: Licence.md
  */
 
 import { Vector3 } from "three";
-import { HalfedgeDS } from "../core/HalfedgeDS";
-import { Vertex } from "../core/Vertex";
+import { HalfedgeDS } from "../../src/core/HalfedgeDS";
+import { Vertex } from "../../src/core/Vertex";
 
 const v1 = new Vertex();
 v1.position.set(2, 3, 4);
@@ -57,4 +57,3 @@ describe ("Add vertex existing position", () => {
 
 
 });
-

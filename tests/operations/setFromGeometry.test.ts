@@ -10,7 +10,7 @@
 
 // LICENCE: Licence.md
 
-import { computeVerticesIndexArray } from './setFromGeometry';
+import { computeVerticesIndexArray } from '../../src/operations/setFromGeometry';
 import {
   CylinderGeometry,
   BoxGeometry,
@@ -18,9 +18,9 @@ import {
   SphereGeometry,
   TorusGeometry,
   BufferAttribute, BufferGeometry} from 'three';
-import { generatorSize } from '../utils/testutils';
-import { HalfedgeDS } from '../core/HalfedgeDS';
-import { Halfedge } from '../core/Halfedge';
+import { generatorSize } from '../helpers/testutils';
+import { HalfedgeDS } from '../../src/core/HalfedgeDS';
+import { Halfedge } from '../../src/core/Halfedge';
 
 const struct = new HalfedgeDS();
 
@@ -29,7 +29,7 @@ function runCommonTests(
     nFace: number,
     nEdges: number,
     nVertices: number) {
-  
+
   describe("Base Tests", () => {
 
     test('Test sets size', () => {
@@ -435,5 +435,3 @@ describe("Degenerate inputs", () => {
   });
 
 });
-
-
