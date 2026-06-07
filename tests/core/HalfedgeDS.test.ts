@@ -1,6 +1,7 @@
 import { Vector3 } from 'three';
 import { BufferGeometry, BoxGeometry } from 'three';
 import { HalfedgeDS } from '../../src/core/HalfedgeDS';
+import { Vertex } from '../../src/core/Vertex';
 import { createSingleTriangle, createDoubleTriangle, createOpenFan, createClosedTetrahedron } from '../helpers/fixtures';
 import { countBoundaryLoops, countFaceLoops } from '../helpers/topologyValidation';
 
@@ -40,6 +41,35 @@ describe('HalfedgeDS', () => {
       expect(struct.faces).toHaveLength(1);
       expect(struct.vertices).toHaveLength(3);
       expect(struct.halfedges).toHaveLength(6);
+    });
+
+    it('resets vertex IDs so next struct starts from 0', () => {
+      // Reset counter to a known state first
+      Vertex.resetIdCounter();
+
+      // Build a first structure with some vertices
+      const struct1 = new HalfedgeDS();
+      struct1.addVertex(new Vector3(0, 0, 0));
+      struct1.addVertex(new Vector3(1, 0, 0));
+      struct1.addVertex(new Vector3(0, 1, 0));
+
+      // IDs should be sequential: 0, 1, 2
+      expect(struct1.vertices[0].id).toBe(0);
+      expect(struct1.vertices[1].id).toBe(1);
+      expect(struct1.vertices[2].id).toBe(2);
+
+      // Clear resets the counter
+      struct1.clear();
+
+      // A new structure after clear gets fresh sequential IDs
+      const struct2 = new HalfedgeDS();
+      const va = struct2.addVertex(new Vector3(10, 10, 10));
+      const vb = struct2.addVertex(new Vector3(20, 20, 20));
+
+      expect(va.id).toBe(0);
+      expect(vb.id).toBe(1);
+
+      struct2.clear();
     });
   });
 

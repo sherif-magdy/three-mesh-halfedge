@@ -32,6 +32,14 @@ export class Vertex {
   }
 
   /**
+   * Resets the global vertex ID counter to zero.
+   * Called automatically by `HalfedgeDS.clear()`.
+   */
+  static resetIdCounter() {
+    _idCount = 0;
+  }
+
+  /**
    * Returns a generator of free halfedges starting from this vertex.
    * @param start The halfedge to start, default is vertex halfedge
    */

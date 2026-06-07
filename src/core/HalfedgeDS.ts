@@ -78,6 +78,7 @@ export class HalfedgeDS {
     this.faces.clear();
     this.vertices.clear();
     this.halfedges.clear();
+    Vertex.resetIdCounter();
   }
 
   /**

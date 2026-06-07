@@ -21,6 +21,7 @@ import { Vertex } from "../../src/core/Vertex";
 import { generatorToArray } from "../helpers/testutils";
 import { addFace } from "../../src/operations/addFace";
 import { createOpenFan, createClosedTetrahedron, createDoubleTriangle } from "../helpers/fixtures";
+import { BoxGeometry } from "three";
 
 const vec_ = new Vector3();
 let v1: Vertex, v2: Vertex, v3: Vertex, v4: Vertex;
@@ -340,5 +341,73 @@ describe("boundaryHalfedgesInLoop", () => {
     expect(generatorToArray(v1.boundaryHalfedgesInLoop())).toHaveLength(0);
     expect(generatorToArray(v2.boundaryHalfedgesInLoop())).toHaveLength(0);
     expect(generatorToArray(v3.boundaryHalfedgesInLoop())).toHaveLength(0);
+  });
+});
+
+describe("Vertex.resetIdCounter", () => {
+  it("resets counter so next vertex gets id 0", () => {
+    // Generate some vertices to advance the counter
+    const s = new HalfedgeDS();
+    s.addVertex(vec_.set(1, 0, 0));
+    s.addVertex(vec_.set(2, 0, 0));
+    s.clear();
+
+    // After clear, counter is reset
+    const v = new Vertex();
+    expect(v.id).toBe(0);
+
+    // Clean up
+    Vertex.resetIdCounter();
+  });
+
+  it("produces sequential IDs within a single structure", () => {
+    Vertex.resetIdCounter();
+    const s = new HalfedgeDS();
+    const v0 = s.addVertex(vec_.set(0, 0, 0));
+    const v1 = s.addVertex(vec_.set(1, 0, 0));
+    const v2 = s.addVertex(vec_.set(2, 0, 0));
+
+    expect(v0.id).toBe(0);
+    expect(v1.id).toBe(1);
+    expect(v2.id).toBe(2);
+
+    s.clear();
+  });
+
+  it("resets IDs via setFromGeometry", () => {
+    Vertex.resetIdCounter();
+    // Advance the counter with a manual struct
+    const s1 = new HalfedgeDS();
+    s1.addVertex(vec_.set(1, 1, 1));
+    s1.addVertex(vec_.set(2, 2, 2));
+    s1.addVertex(vec_.set(3, 3, 3));
+    // IDs are now at 3+
+
+    // setFromGeometry calls clear() which resets the counter
+    const s2 = new HalfedgeDS();
+    s2.setFromGeometry(new BoxGeometry(1, 1, 1));
+
+    // All vertex IDs should start from 0
+    for (let i = 0; i < s2.vertices.length; i++) {
+      expect(s2.vertices[i].id).toBe(i);
+    }
+
+    s1.clear();
+    s2.clear();
+  });
+
+  it("can be called manually without a HalfedgeDS", () => {
+    Vertex.resetIdCounter();
+    const v0 = new Vertex();
+    const v1 = new Vertex();
+
+    expect(v0.id).toBe(0);
+    expect(v1.id).toBe(1);
+
+    Vertex.resetIdCounter();
+    const vAfterReset = new Vertex();
+    expect(vAfterReset.id).toBe(0);
+
+    Vertex.resetIdCounter();
   });
 });
