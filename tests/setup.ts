@@ -13,7 +13,6 @@
  */
 
 import { expect } from 'vitest';
-import '../src/augments';
 import { Halfedge } from "../src/core/Halfedge";
 import { Vertex } from "../src/core/Vertex";
 

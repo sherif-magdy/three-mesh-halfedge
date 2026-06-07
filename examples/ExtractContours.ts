@@ -3,7 +3,7 @@ import { AmbientLight,  BackSide,  BufferGeometry,
   FrontSide, GreaterDepth, Mesh, MeshPhongMaterial, PerspectiveCamera, 
   PointLight, Scene, Vector2, WebGLRenderer } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import {HalfedgeDS, Halfedge, Face} from '../src/index';
+import {HalfedgeDS, Halfedge, Face, clearArray} from '../src/index';
 import {debounce} from 'throttle-debounce';
 import { removeTrianglesFromGeometry, setupMeshGeometry, Shape } from './utils';
 import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2';
@@ -189,8 +189,8 @@ function extractHalfEdges() {
 
   updateFrontFaces();
 
-  silhouetteHalfedges.clear();
-  boundaryHalfedges.clear();
+  clearArray(silhouetteHalfedges);
+  clearArray(boundaryHalfedges);
 
   const handled = new Set<Halfedge>();
 

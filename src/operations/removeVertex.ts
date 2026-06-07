@@ -15,6 +15,7 @@
 import { HalfedgeDS } from "../core/HalfedgeDS";
 import { Vertex } from "../core/Vertex";
 import { removeEdge } from "./removeEdge";
+import { removeFromArray } from "../utils/array";
 
 /*
  *         From                            To    
@@ -49,5 +50,5 @@ export function removeVertex(
     removeEdge(struct, halfedge, mergeFaces);
   }
 
-  struct.vertices.remove(vertex);
+  removeFromArray(struct.vertices, vertex);
 }

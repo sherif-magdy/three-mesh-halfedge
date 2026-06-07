@@ -14,12 +14,13 @@
 
 import { Face } from "../core/Face";
 import { HalfedgeDS } from "../core/HalfedgeDS";
+import { removeFromArray } from "../utils/array";
 
 export function removeFace(
     struct: HalfedgeDS,
     face: Face) {
-  
-  if (!struct.faces.remove(face)) {
+
+  if (!removeFromArray(struct.faces, face)) {
     return;
   }
 

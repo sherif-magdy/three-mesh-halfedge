@@ -15,6 +15,7 @@
 import { Halfedge } from "../core/Halfedge";
 import { HalfedgeDS } from "../core/HalfedgeDS";
 import { removeFace } from "./removeFace";
+import { removeFromArray } from "../utils/array";
 
 export function removeEdge(
     struct: HalfedgeDS,
@@ -78,7 +79,7 @@ export function removeEdge(
   }
 
   // Remove halfedges from struct
-  struct.halfedges.remove(halfedge);
-  struct.halfedges.remove(twin);
+  removeFromArray(struct.halfedges, halfedge);
+  removeFromArray(struct.halfedges, twin);
 
 }

@@ -23,6 +23,7 @@ import { removeFace } from '../operations/removeFace';
 import { cutFace } from '../operations/cutFace';
 import { splitEdge } from '../operations/splitEdge';
 import { setFromGeometry } from '../operations/setFromGeometry';
+import { clearArray } from '../utils/array';
 
 
 /**
@@ -75,9 +76,9 @@ export class HalfedgeDS {
    * Clear the structure data
    */
   clear() {
-    this.faces.clear();
-    this.vertices.clear();
-    this.halfedges.clear();
+    clearArray(this.faces);
+    clearArray(this.vertices);
+    clearArray(this.halfedges);
     Vertex.resetIdCounter();
   }
 
