@@ -23,6 +23,7 @@ import { removeFace } from '../operations/removeFace';
 import { cutFace } from '../operations/cutFace';
 import { splitEdge } from '../operations/splitEdge';
 import { setFromGeometry } from '../operations/setFromGeometry';
+import { toGeometry } from '../operations/toGeometry';
 import { clearArray } from '../utils/array';
 
 
@@ -45,6 +46,17 @@ export class HalfedgeDS {
    */
   setFromGeometry(geometry: BufferGeometry, tolerance = 1e-10) {
     return setFromGeometry(this, geometry, tolerance);
+  }
+
+  /**
+   * Converts the halfedge structure back to a BufferGeometry.
+   * Faces with more than 3 vertices are fan-triangulated.
+   * Only faces (not boundary/free halfedges) are included.
+   *
+   * @returns A new indexed BufferGeometry
+   */
+  toGeometry() {
+    return toGeometry(this);
   }
 
   /**
