@@ -16,8 +16,9 @@ import { BufferAttribute, BufferGeometry, InterleavedBufferAttribute, Vector3 } 
 import { Halfedge } from "../core/Halfedge";
 import { HalfedgeDS } from "../core/HalfedgeDS";
 import { Vertex } from "../core/Vertex";
+import { lazy } from "../utils/lazy";
 
-const pos_ = new Vector3();
+const pos_ = lazy(() => new Vector3());
 
 export function setFromGeometry(
     struct: HalfedgeDS,
@@ -67,8 +68,8 @@ export function setFromGeometry(
       const i1 = getVertexIndex(faceIndex*3 + i);
       let v1 = vertexMap.get(i1);
       if (!v1) {
-        pos_.fromBufferAttribute(positions, i1);
-        v1 = struct.addVertex(pos_);
+        pos_().fromBufferAttribute(positions, i1);
+        v1 = struct.addVertex(pos_());
         vertexMap.set(i1, v1);
       }
 
@@ -76,8 +77,8 @@ export function setFromGeometry(
       const i2 = getVertexIndex(faceIndex*3 + (i+1)%3);
       let v2 = vertexMap.get(i2);
       if (!v2) {
-        pos_.fromBufferAttribute(positions, i2);
-        v2 = struct.addVertex(pos_);
+        pos_().fromBufferAttribute(positions, i2);
+        v2 = struct.addVertex(pos_());
         vertexMap.set(i2, v2);
       }
 

@@ -17,9 +17,19 @@
   "license": "MIT",
   "branch": "main",
   "type": "module",
-  "main": "build/index.umd.js",
+  "main": "build/index.cjs",
   "module": "build/index.esm.js",
   "types": "build/types/index.d.ts",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./build/types/index.d.ts",
+      "import": "./build/index.esm.js",
+      "require": "./build/index.cjs",
+      "default": "./build/index.esm.js"
+    },
+    "./package.json": "./package.json"
+  },
   "files": [
     "src",
     "build"

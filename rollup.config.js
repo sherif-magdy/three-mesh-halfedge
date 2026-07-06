@@ -9,17 +9,28 @@ const lib_cfg = {
   external: ['three'],
   output: [
     {
+      // UMD bundle for <script>/CDN consumers. The browser global for three.js
+      // is `THREE` (window.THREE), not `three`.
       name: 'MeshHalfEdgeLib',
       format: 'umd',
       file: 'build/index.umd.js',
       sourcemap: true,
       globals: {
-        'three':'three'
+        'three': 'THREE'
       }
     },
     {
+      // ESM bundle for bundlers (Vite/webpack/rollup) and native Node import.
       format: 'esm',
       file: 'build/index.esm.js',
+      sourcemap: true,
+    },
+    {
+      // CJS bundle for Node require(). Under "type":"module" a .js UMD file is
+      // parsed as ESM and its factory runs the global branch (where `three` is
+      // undefined), so the require entry must be a real .cjs file.
+      format: 'cjs',
+      file: 'build/index.cjs',
       sourcemap: true,
     }
   ],

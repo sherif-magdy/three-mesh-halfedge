@@ -14,10 +14,11 @@ import { Line3, Vector3 } from 'three';
 import { Face } from './Face';
 import { Vertex } from './Vertex';
 import { frontSide } from '../utils/geometry';
+import { lazy } from '../utils/lazy';
 
-const _u = new Vector3();
-const _v = new Vector3();
-const _line = new Line3();
+const _u = lazy(() => new Vector3());
+const _v = lazy(() => new Vector3());
+const _line = lazy(() => new Line3());
 
 export class Halfedge {
 
@@ -39,11 +40,11 @@ export class Halfedge {
   }
 
   containsPoint(point: Vector3, tolerance = 1e-10): boolean {
-    _u.subVectors(this.vertex.position, point)
-    _v.subVectors(this.next.vertex.position, point)
-    _line.set(this.vertex.position, this.next.vertex.position);
-    _line.closestPointToPoint(point, true, _u);
-    return _u.distanceTo(point) < tolerance;
+    _u().subVectors(this.vertex.position, point)
+    _v().subVectors(this.next.vertex.position, point)
+    _line().set(this.vertex.position, this.next.vertex.position);
+    _line().closestPointToPoint(point, true, _u());
+    return _u().distanceTo(point) < tolerance;
   }
 
   /**

@@ -11,19 +11,20 @@
 // LICENCE: Licence.md
 
 import {Matrix4, Vector3} from 'three';
+import {lazy} from './lazy';
 
 const EPSILON = 1e-10;
 
 // See https://hal.inria.fr/hal-02189483 appendix C.2 Orientation test
-const _matrix = new Matrix4();
+const _matrix = lazy(() => new Matrix4());
 export function orient3D(a: Vector3, b: Vector3, c: Vector3, d: Vector3) {
-  _matrix.set(
+  _matrix().set(
     a.x, a.y, a.z, 1,
     b.x, b.y, b.z, 1,
     c.x, c.y, c.z, 1,
     d.x, d.y, d.z, 1
   );
-  const det = _matrix.determinant();
+  const det = _matrix().determinant();
 
   if (det > EPSILON) {
     return 1;

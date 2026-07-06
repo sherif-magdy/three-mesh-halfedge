@@ -13,8 +13,9 @@
 import { Vector3 } from 'three';
 import type { Face } from './Face';
 import { Halfedge } from './Halfedge';
+import { lazy } from '../utils/lazy';
 
-const _u = new Vector3();
+const _u = lazy(() => new Vector3());
 let _idCount = 0;
 
 export class Vertex {
@@ -133,8 +134,8 @@ export class Vertex {
    * @return     {boolean}
    */
   matchesPosition(position: Vector3, tolerance = 1e-10): boolean {
-    _u.subVectors(position, this.position);
-    return _u.length() < tolerance;
+    _u().subVectors(position, this.position);
+    return _u().length() < tolerance;
   }
 
   /**

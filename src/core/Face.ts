@@ -13,11 +13,12 @@
 import { Vector3, Triangle } from 'three';
 import { Vertex } from './Vertex';
 import { Halfedge } from './Halfedge';
+import { lazy } from '../utils/lazy';
 
-const _viewVector = new Vector3();
-const _normal = new Vector3();
-const _triangle = new Triangle();
-const _vec = new Vector3();
+const _viewVector = lazy(() => new Vector3());
+const _normal = lazy(() => new Vector3());
+const _triangle = lazy(() => new Triangle());
+const _vec = lazy(() => new Vector3());
 
 export class Face {
 
@@ -28,21 +29,21 @@ export class Face {
   }
 
   getNormal(target: Vector3) {
-    _triangle.set(
+    _triangle().set(
       this.halfedge.prev.vertex.position,
       this.halfedge.vertex.position,
       this.halfedge.next.vertex.position
     );
-    _triangle.getNormal(target);
+    _triangle().getNormal(target);
   }
 
   getMidpoint(target: Vector3) {
-    _triangle.set(
+    _triangle().set(
       this.halfedge.prev.vertex.position,
       this.halfedge.vertex.position,
       this.halfedge.next.vertex.position
     );
-    _triangle.getMidpoint(target);
+    _triangle().getMidpoint(target);
   }
 
   /**
@@ -52,11 +53,11 @@ export class Face {
    * @return `true` if face is front facing, `false` otherwise.
    */
   isFront(position: Vector3) {
-    this.getNormal(_normal);
-    return _viewVector
+    this.getNormal(_normal());
+    return _viewVector()
       .subVectors(position, this.halfedge.vertex.position)
       .normalize()
-      .dot(_normal) >= 0;
+      .dot(_normal()) >= 0;
   }
 
   /**
@@ -86,9 +87,9 @@ export class Face {
     for (const he of this.halfedge.nextLoop()) {
       // Check if position is close enough to the vertex position within the
       // provided tolerance
-      _vec.subVectors(he.vertex.position, position);
+      _vec().subVectors(he.vertex.position, position);
 
-      if (_vec.length() < tolerance) {
+      if (_vec().length() < tolerance) {
         return he.vertex;
       }
     }
