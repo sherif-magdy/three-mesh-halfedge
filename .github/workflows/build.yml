@@ -25,11 +25,9 @@ jobs:
           npm run lint
           npm run test
           npm run build
-          npm run build-examples
-          npm run build-doc
       - name: Commit to public
         uses: EndBug/add-and-commit@v7
         with:
-          add: 'build build-examples doc --force'
-          message: 'Update build, examples and doc'
+          add: 'build --force'
+          message: 'Update build'
           push: 'origin HEAD:public --force'
