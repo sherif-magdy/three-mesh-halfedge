@@ -25,9 +25,3 @@ jobs:
           npm run lint
           npm run test
           npm run build
-      - name: Commit to public
-        uses: EndBug/add-and-commit@v7
-        with:
-          add: 'build --force'
-          message: 'Update build'
-          push: 'origin HEAD:public --force'
