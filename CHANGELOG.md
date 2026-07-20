@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.2.0](https://github.com/sherif-magdy/three-mesh-halfedge/compare/v2.1.0...v2.2.0) (2026-07-20)
+
+
+### Features
+
+* **core:** add structure-preserving clone()/copy() ([4c2ed07](https://github.com/sherif-magdy/three-mesh-halfedge/commit/4c2ed073f75e82c5728e06b74d1045c7c08909ad))
+
+
+### Bug Fixes
+
+* **operations:** drain one-ring generator before mutating in removeVertex ([ca5cd36](https://github.com/sherif-magdy/three-mesh-halfedge/commit/ca5cd3660ce1f355a044aef7ef6e72afe2905835))
+* **operations:** update both adjacent face loops in splitEdge ([f9bf14c](https://github.com/sherif-magdy/three-mesh-halfedge/commit/f9bf14ceacfca456be6593036af7e310de1b0713))
+
 ## [2.1.0](https://github.com/sherif-magdy/three-mesh-halfedge/compare/v2.0.0...v2.1.0) (2026-07-06)
 
 
