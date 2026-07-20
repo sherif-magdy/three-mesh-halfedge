@@ -46,7 +46,12 @@ export function removeVertex(
     vertex: Vertex,
     mergeFaces = true) {
 
-  for (const halfedge of vertex.loopCW()) {
+  // Drain the one-ring generator into a static array BEFORE mutating.
+  // removeEdge rewrites the very twin/next pointers that loopCW walks
+  // (curr.twin.next), so iterating it live cycles on the mutated pointers
+  // and never terminates.
+  const halfedges = Array.from(vertex.loopCW());
+  for (const halfedge of halfedges) {
     removeEdge(struct, halfedge, mergeFaces);
   }
 

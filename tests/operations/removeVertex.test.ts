@@ -12,8 +12,10 @@ import { removeVertex } from '../../src/operations/removeVertex';
 import {
   createSingleTriangle,
   createDoubleTriangle,
+  createClosedTetrahedron,
 } from '../helpers/fixtures';
 import { generatorToArray } from '../helpers/testutils';
+import { validateHalfedgeConsistency } from '../helpers/topologyValidation';
 
 describe('removeVertex', () => {
 
@@ -112,5 +114,32 @@ describe('removeVertex', () => {
       expect(he.twin.twin).toBe(he);
     }
   });
+
+  test('closed tetrahedron: removeVertex(mergeFaces=true) terminates and removes the vertex', () => {
+    // Regression for an infinite loop: removeVertex iterated vertex.loopCW()
+    // — a LIVE generator — while removeEdge mutated the very twin/next
+    // pointers the generator walks (curr.twin.next). After a couple of
+    // removals the generator cycled on the mutated pointers and never
+    // terminated, crashing the vitest worker (~95s). The explicit timeout
+    // makes a regression fail fast instead of hanging.
+    const { struct, v0 } = createClosedTetrahedron();
+
+    expect(struct.vertices).toHaveLength(4);
+
+    removeVertex(struct, v0, true);
+
+    // v0 is gone
+    expect(struct.vertices).toHaveLength(3);
+    expect(struct.vertices.includes(v0)).toBe(false);
+
+    // No remaining halfedge references v0
+    for (const he of struct.halfedges) {
+      expect(he.vertex).not.toBe(v0);
+    }
+
+    // Remaining topology is self-consistent (n-gons from merges are fine —
+    // validateHalfedgeConsistency checks twin/next/prev invariants, not loop length)
+    validateHalfedgeConsistency(struct);
+  }, 10000);
 
 });
