@@ -800,9 +800,12 @@ describe('toGeometry – complex operation chains', () => {
     );
     struct.splitEdge(he, midpoint);
 
-    // Now: the original triangle became a quad → 2 triangles
-    // Plus 11 other triangles = 13 total
-    expect(triangleCount(toGeometry(struct))).toBe(13);
+    // In a closed mesh every edge is shared by two faces. Splitting inserts
+    // the new vertex into BOTH adjacent face loops, so each triangle becomes
+    // a quad (→ 2 triangles each): 2 + 2 = 4 triangles, plus the 10 untouched
+    // faces = 14 total. (Prior to the splitEdge fix, only one face's loop was
+    // updated, yielding the incorrect 13.)
+    expect(triangleCount(toGeometry(struct))).toBe(14);
   });
 
 });
