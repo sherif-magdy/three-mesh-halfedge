@@ -95,6 +95,79 @@ export class HalfedgeDS {
   }
 
   /**
+   * Replaces this structure's contents with a deep copy of `other`.
+   *
+   * Unlike the `toGeometry()` -> `setFromGeometry()` round-trip, `copy`
+   * preserves the exact topology (no n-gon re-triangulation) and the original
+   * vertex ids. The result is fully independent: mutating it does not affect
+   * the source, and vice versa.
+   *
+   * Note: `this` and `other` must be distinct structures.
+   *
+   * @param other Structure to copy from
+   * @returns this
+   */
+  copy(other: HalfedgeDS): this {
+    this.clear();
+
+    const vertexMap = new Map<Vertex, Vertex>();
+    const halfedgeMap = new Map<Halfedge, Halfedge>();
+    const faceMap = new Map<Face, Face>();
+
+    // Vertices — preserve id and position
+    for (const v of other.vertices) {
+      const nv = new Vertex();
+      nv.position.copy(v.position);
+      nv.id = v.id;
+      vertexMap.set(v, nv);
+      this.vertices.push(nv);
+    }
+
+    // Halfedges — set origin vertex now; twin/next/prev/face wired below
+    for (const he of other.halfedges) {
+      const nhe = new Halfedge(vertexMap.get(he.vertex)!);
+      halfedgeMap.set(he, nhe);
+      this.halfedges.push(nhe);
+    }
+
+    // Faces — anchor halfedge comes from the halfedge map
+    for (const f of other.faces) {
+      const nf = new Face(halfedgeMap.get(f.halfedge)!);
+      faceMap.set(f, nf);
+      this.faces.push(nf);
+    }
+
+    // Wire halfedge links + face ownership
+    for (const he of other.halfedges) {
+      const nhe = halfedgeMap.get(he)!;
+      nhe.twin = halfedgeMap.get(he.twin)!;
+      nhe.next = halfedgeMap.get(he.next)!;
+      nhe.prev = halfedgeMap.get(he.prev)!;
+      nhe.face = he.face ? faceMap.get(he.face)! : null;
+    }
+
+    // Wire vertex.halfedge (may be null for isolated vertices)
+    for (const v of other.vertices) {
+      const nv = vertexMap.get(v)!;
+      nv.halfedge = v.halfedge ? halfedgeMap.get(v.halfedge)! : null;
+    }
+
+    return this;
+  }
+
+  /**
+   * Returns a deep, independent copy of this structure.
+   * See {@link HalfedgeDS.copy} for semantics.
+   *
+   * @returns A new HalfedgeDS with identical topology and vertex ids
+   */
+  clone(): HalfedgeDS {
+    const clone = new HalfedgeDS();
+    clone.copy(this);
+    return clone;
+  }
+
+  /**
    * Adds a new vertex to the structure at the given position and returns it.
    * If checkDuplicates is true, returns any existing vertex that matches the 
    * given position.

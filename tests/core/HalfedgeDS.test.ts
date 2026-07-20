@@ -3,7 +3,7 @@ import { BufferGeometry, BoxGeometry } from 'three';
 import { HalfedgeDS } from '../../src/core/HalfedgeDS';
 import { Vertex } from '../../src/core/Vertex';
 import { createSingleTriangle, createDoubleTriangle, createOpenFan, createClosedTetrahedron } from '../helpers/fixtures';
-import { countBoundaryLoops, countFaceLoops } from '../helpers/topologyValidation';
+import { countBoundaryLoops, countFaceLoops, validateHalfedgeConsistency } from '../helpers/topologyValidation';
 
 describe('HalfedgeDS', () => {
 
@@ -223,6 +223,89 @@ describe('HalfedgeDS', () => {
       expect(struct.vertices).toHaveLength(3);
       // 3 edges x 2 halfedges each = 6
       expect(struct.halfedges).toHaveLength(6);
+    });
+  });
+
+  describe('clone / copy', () => {
+    it('clone() produces an independent copy with identical counts', () => {
+      const { struct } = createClosedTetrahedron();
+      const clone = struct.clone();
+
+      expect(clone).not.toBe(struct);
+      expect(clone.vertices).toHaveLength(struct.vertices.length);
+      expect(clone.halfedges).toHaveLength(struct.halfedges.length);
+      expect(clone.faces).toHaveLength(struct.faces.length);
+
+      // Distinct object identities — not shared references
+      for (let i = 0; i < struct.vertices.length; i++) {
+        expect(clone.vertices[i]).not.toBe(struct.vertices[i]);
+      }
+      for (let i = 0; i < struct.halfedges.length; i++) {
+        expect(clone.halfedges[i]).not.toBe(struct.halfedges[i]);
+      }
+    });
+
+    it('clone() preserves vertex ids', () => {
+      const { struct } = createClosedTetrahedron();
+      const clone = struct.clone();
+
+      const originalIds = struct.vertices.map(v => v.id).sort();
+      const cloneIds = clone.vertices.map(v => v.id).sort();
+      expect(cloneIds).toEqual(originalIds);
+    });
+
+    it('clone() preserves vertex positions', () => {
+      const { struct } = createClosedTetrahedron();
+      const clone = struct.clone();
+
+      const key = (p: Vector3) => p.toArray().map(n => n.toFixed(6)).join(',');
+      const original = struct.vertices.map(v => key(v.position)).sort();
+      const cloned = clone.vertices.map(v => key(v.position)).sort();
+      expect(cloned).toEqual(original);
+    });
+
+    it('clone() is independent: mutating the clone does not affect the original', () => {
+      const { struct, v0 } = createSingleTriangle();
+      const clone = struct.clone();
+
+      const originalPos = v0.position.clone();
+      clone.vertices[0].position.set(99, 99, 99);
+
+      expect(v0.position.equals(originalPos)).toBe(true);
+    });
+
+    it('clone() preserves full topology consistency (twin/next/prev)', () => {
+      const { struct } = createClosedTetrahedron();
+      const clone = struct.clone();
+      validateHalfedgeConsistency(clone);
+    });
+
+    it('clone() of a mesh with boundaries preserves loop counts', () => {
+      // Open fan has free/boundary halfedges (face === null) and an isolated
+      // edge structure — exercises the null-face and null-halfedge paths in copy.
+      const { struct } = createOpenFan();
+      const clone = struct.clone();
+
+      expect(clone.vertices).toHaveLength(struct.vertices.length);
+      expect(clone.halfedges).toHaveLength(struct.halfedges.length);
+      expect(clone.faces).toHaveLength(struct.faces.length);
+      expect(countFaceLoops(clone)).toBe(countFaceLoops(struct));
+      expect(countBoundaryLoops(clone)).toBe(countBoundaryLoops(struct));
+      validateHalfedgeConsistency(clone);
+    });
+
+    it('copy() replaces the target structure contents and returns this', () => {
+      const { struct } = createClosedTetrahedron();
+      const target = new HalfedgeDS();
+      // Target starts with its own data, which copy() must wipe
+      target.addVertex(new Vector3(0, 0, 0));
+      expect(target.vertices).toHaveLength(1);
+
+      const returned = target.copy(struct);
+      expect(returned).toBe(target);
+      expect(target.vertices).toHaveLength(struct.vertices.length);
+      expect(target.faces).toHaveLength(struct.faces.length);
+      validateHalfedgeConsistency(target);
     });
   });
 });
