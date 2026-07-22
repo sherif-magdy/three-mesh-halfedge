@@ -25,6 +25,7 @@ import { splitEdge } from '../operations/splitEdge';
 import { setFromGeometry } from '../operations/setFromGeometry';
 import { setFromPolygons } from '../operations/setFromPolygons';
 import { toGeometry } from '../operations/toGeometry';
+import { tessellate } from '../operations/tessellate';
 import { updateFaceNormal } from '../operations/updateFaceNormal';
 import { clearArray } from '../utils/array';
 
@@ -41,12 +42,18 @@ export class HalfedgeDS {
   /** @readonly Halfedges */
   readonly halfedges = new Array<Halfedge>();
 
+  // Lazily-computed triangle cache for tessellate(). Invalidated by every
+  // topology mutator; position edits need a manual invalidateTessellation().
+  private _tessellationCache: number[][] | null = null;
+  private _tessellationDirty = true;
+
   /**
    * Sets the halfedge structure from a BufferGeometry.
    * @param geometry BufferGeometry to read
    * @param tolerance Tolerance distance from which positions are considered equal
    */
   setFromGeometry(geometry: BufferGeometry, tolerance = 1e-10) {
+    this.invalidateTessellation();
     return setFromGeometry(this, geometry, tolerance);
   }
 
@@ -77,6 +84,7 @@ export class HalfedgeDS {
       faceOffsets: number[],
       cornerVerts: number[],
       tolerance = 1e-10) {
+    this.invalidateTessellation();
     return setFromPolygons(this, positions, faceOffsets, cornerVerts, tolerance);
   }
 
@@ -102,6 +110,40 @@ export class HalfedgeDS {
    */
   toGeometry() {
     return toGeometry(this);
+  }
+
+  /**
+   * Triangulates every Face into a cached, lazily-computed list of triangles.
+   *
+   * Each n-gon face (n > 3) is ear-clipped so concave faces triangulate
+   * correctly, unlike {@link toGeometry}'s fan. The result is cached and reused
+   * until invalidated. Triangles are vertex-id triples `[vId0, vId1, vId2]`
+   * preserving each face's CCW winding.
+   *
+   * Every topology mutator (addVertex/addEdge/addFace/clear/removeEdge/
+   * removeVertex/removeFace/cutFace/splitEdge/setFromGeometry/setFromPolygons)
+   * clears the cache automatically. Vertex **position** writes are not
+   * observable (position is a readonly Vector3), yet they can change a concave
+   * face's valid ears — call {@link invalidateTessellation} after editing
+   * positions directly.
+   *
+   * @returns Cached triangle list (vertex-id triples).
+   */
+  tessellate(): number[][] {
+    if (this._tessellationDirty || this._tessellationCache === null) {
+      this._tessellationCache = tessellate(this);
+      this._tessellationDirty = false;
+    }
+    return this._tessellationCache;
+  }
+
+  /**
+   * Marks the tessellation cache stale (next {@link tessellate} recomputes).
+   * Call after direct `vertex.position` edits; topology ops invalidate for you.
+   */
+  invalidateTessellation(): void {
+    this._tessellationDirty = true;
+    this._tessellationCache = null;
   }
 
   /**
@@ -133,6 +175,7 @@ export class HalfedgeDS {
    * Clear the structure data
    */
   clear() {
+    this.invalidateTessellation();
     clearArray(this.faces);
     clearArray(this.vertices);
     clearArray(this.halfedges);
@@ -255,6 +298,7 @@ export class HalfedgeDS {
       position: Vector3,
       checkDuplicates = false,
       tolerance = 1e-10) {
+    this.invalidateTessellation();
     return addVertex(this, position, checkDuplicates, tolerance);
   }
 
@@ -269,6 +313,7 @@ export class HalfedgeDS {
    * @returns Existing or new halfedge
    */
   addEdge(v1: Vertex, v2: Vertex, allowParallels = false) {
+    this.invalidateTessellation();
     return addEdge(this, v1, v2, allowParallels)
   }
 
@@ -278,6 +323,7 @@ export class HalfedgeDS {
    * @returns 
    */
   addFace(halfedges: Halfedge[]) {
+    this.invalidateTessellation();
     return addFace(this, halfedges);
   }
 
@@ -287,6 +333,7 @@ export class HalfedgeDS {
    * @param mergeFaces If true, merges connected faces if any, otherwise removes them. Default true
    */
   removeVertex(vertex: Vertex, mergeFaces = true) {
+    this.invalidateTessellation();
     return removeVertex(this, vertex, mergeFaces);
   }
 
@@ -296,6 +343,7 @@ export class HalfedgeDS {
    * @param mergeFaces If true, merges connected faces if any, otherwise removes them. Default true
    */
   removeEdge(halfedge: Halfedge, mergeFaces = true) {
+    this.invalidateTessellation();
     return removeEdge(this, halfedge, mergeFaces);
   }
 
@@ -304,6 +352,7 @@ export class HalfedgeDS {
    * @param face Face to remove
    */
   removeFace(face: Face) {
+    this.invalidateTessellation();
     return removeFace(this, face);
   }
 
@@ -329,6 +378,7 @@ export class HalfedgeDS {
    * @returns the cutting halfedge
    */
   cutFace(face: Face, v1: Vertex, v2: Vertex, createNewFace = true) {
+    this.invalidateTessellation();
     return cutFace(this, face, v1, v2, createNewFace);
   }
 
@@ -339,6 +389,7 @@ export class HalfedgeDS {
    * @returns the new created vertex
    */
   splitEdge(halfedge: Halfedge, position: Vector3, tolerance = 1e-10) {
+    this.invalidateTessellation();
     return splitEdge(this, halfedge, position, tolerance);
   }
 

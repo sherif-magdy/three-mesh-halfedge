@@ -4,4 +4,5 @@ export {Vertex} from './core/Vertex';
 export {Halfedge} from './core/Halfedge';
 export {clearArray, removeFromArray} from './utils/array';
 export {toGeometry} from './operations/toGeometry';
+export {tessellate} from './operations/tessellate';
 export {updateFaceNormal} from './operations/updateFaceNormal';
