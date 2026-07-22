@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.0](https://github.com/sherif-magdy/three-mesh-halfedge/compare/v2.2.0...v2.3.0) (2026-07-22)
+
+
+### Features
+
+* **core:** add n-gon-native ingestion and Newell face normals ([0b6a0f3](https://github.com/sherif-magdy/three-mesh-halfedge/commit/0b6a0f374812a95b9df5673f0c2476156f0fe3a6))
+
 ## [2.2.0](https://github.com/sherif-magdy/three-mesh-halfedge/compare/v2.1.0...v2.2.0) (2026-07-20)
 
 
