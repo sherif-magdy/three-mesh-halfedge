@@ -23,7 +23,9 @@ import { removeFace } from '../operations/removeFace';
 import { cutFace } from '../operations/cutFace';
 import { splitEdge } from '../operations/splitEdge';
 import { setFromGeometry } from '../operations/setFromGeometry';
+import { setFromPolygons } from '../operations/setFromPolygons';
 import { toGeometry } from '../operations/toGeometry';
+import { updateFaceNormal } from '../operations/updateFaceNormal';
 import { clearArray } from '../utils/array';
 
 
@@ -46,6 +48,49 @@ export class HalfedgeDS {
    */
   setFromGeometry(geometry: BufferGeometry, tolerance = 1e-10) {
     return setFromGeometry(this, geometry, tolerance);
+  }
+
+  /**
+   * Rebuilds the halfedge structure in place from an n-gon face table.
+   *
+   * A cube enters the structure as 6 quad {@link Face}s (not 12 triangles) and
+   * keeps that n-gon identity — there is no fan-triangulation. Each polygon
+   * becomes exactly one `Face`; shared edges between polygons become twin
+   * halfedges (manifold = 2 faces per edge, boundary = 1).
+   *
+   * Vertex deduplication is identical to {@link setFromGeometry}: coincident
+   * corners within `tolerance` collapse to one vertex (this is what turns a
+   * cube's 24 corners into 8 vertices).
+   *
+   * Clears existing topology first (idempotent).
+   *
+   * @param positions    Flat vertex positions, length = 3 * vertCount.
+   * @param faceOffsets  Run-length face table: polygon i's corners are
+   *                     `cornerVerts[faceOffsets[i] .. faceOffsets[i+1])`.
+   *                     Length = faceCount + 1, `faceOffsets[0] === 0`,
+   *                     strictly increasing.
+   * @param cornerVerts  Per-corner vertex index into `positions`.
+   * @param tolerance    Vertex-merge tolerance (default = 1e-10).
+   */
+  setFromPolygons(
+      positions: Float32Array | number[],
+      faceOffsets: number[],
+      cornerVerts: number[],
+      tolerance = 1e-10) {
+    return setFromPolygons(this, positions, faceOffsets, cornerVerts, tolerance);
+  }
+
+  /**
+   * Recomputes a face's normal (Newell's method) into `target`.
+   *
+   * Explicit recompute entry point — call it after a topology mutation when a
+   * fresh face normal is needed. Equivalent to `face.getNormal(target)`.
+   *
+   * @param face   Face whose normal to recompute.
+   * @param target Vector3 to receive the unit normal.
+   */
+  updateFaceNormal(face: Face, target: Vector3) {
+    return updateFaceNormal(face, target);
   }
 
   /**
@@ -92,6 +137,35 @@ export class HalfedgeDS {
     clearArray(this.vertices);
     clearArray(this.halfedges);
     Vertex.resetIdCounter();
+  }
+
+  /**
+   * Ergonomic n-gon constructor.
+   *
+   * `polygons[i] = [v0, v1, …, v(n-1)]` (CCW viewed from outside). Converts the
+   * per-polygon index loops into a run-length face table and delegates to
+   * {@link HalfedgeDS.setFromPolygons}.
+   *
+   * @param positions Flat vertex positions, length = 3 * vertCount.
+   * @param polygons  Per-polygon corner-vertex-index loops.
+   * @param tolerance Vertex-merge tolerance (default = 1e-10).
+   * @returns A new HalfedgeDS built from the polygons.
+   */
+  static fromPolygons(
+      positions: Float32Array | number[],
+      polygons: number[][],
+      tolerance = 1e-10): HalfedgeDS {
+    const faceOffsets = [0];
+    const cornerVerts = new Array<number>();
+    for (const polygon of polygons) {
+      for (const vertexIndex of polygon) {
+        cornerVerts.push(vertexIndex);
+      }
+      faceOffsets.push(cornerVerts.length);
+    }
+    const struct = new HalfedgeDS();
+    struct.setFromPolygons(positions, faceOffsets, cornerVerts, tolerance);
+    return struct;
   }
 
   /**

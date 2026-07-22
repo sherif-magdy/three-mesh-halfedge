@@ -14,6 +14,7 @@ import { Vector3, Triangle } from 'three';
 import { Vertex } from './Vertex';
 import { Halfedge } from './Halfedge';
 import { lazy } from '../utils/lazy';
+import { computeFaceNormal } from '../utils/faceNormal';
 
 const _viewVector = lazy(() => new Vector3());
 const _normal = lazy(() => new Vector3());
@@ -28,13 +29,24 @@ export class Face {
     this.halfedge = halfEdge;
   }
 
+  /**
+   * Number of corners (vertices) on this face's boundary loop.
+   *
+   * Derived from the live halfedge loop, so it always reflects the current
+   * topology (triangles report 3, quads 4, arbitrary n-gons n). Never cached,
+   * so it cannot go stale after a mutation.
+   */
+  get size(): number {
+    const loop = this.halfedge.nextLoop();
+    let count = 0;
+    while (!loop.next().done) {
+      count += 1;
+    }
+    return count;
+  }
+
   getNormal(target: Vector3) {
-    _triangle().set(
-      this.halfedge.prev.vertex.position,
-      this.halfedge.vertex.position,
-      this.halfedge.next.vertex.position
-    );
-    _triangle().getNormal(target);
+    computeFaceNormal(this, target);
   }
 
   getMidpoint(target: Vector3) {

@@ -1,5 +1,17 @@
 import { Vector3 } from 'three';
 import { createSingleTriangle } from '../helpers/fixtures';
+import { HalfedgeDS } from '../../src/core/HalfedgeDS';
+
+/** Build a single n-gon face in the z=0 plane from the given corner positions. */
+function buildZPlaneFace(corners: Array<[number, number]>): HalfedgeDS['faces'][number] {
+  const struct = new HalfedgeDS();
+  const verts = corners.map(([x, y]) => struct.addVertex(new Vector3(x, y, 0)));
+  const halfedges: ReturnType<HalfedgeDS['addEdge']>[] = [];
+  for (let i = 0; i < verts.length; i++) {
+    halfedges.push(struct.addEdge(verts[i], verts[(i + 1) % verts.length]));
+  }
+  return struct.addFace(halfedges);
+}
 
 describe('Face', () => {
 
@@ -14,6 +26,64 @@ describe('Face', () => {
       expect(normal.x).toBeCloseTo(0, 10);
       expect(normal.y).toBeCloseTo(0, 10);
       expect(normal.z).toBeCloseTo(1, 10);
+    });
+  });
+
+  describe('getNormal (n-gon / Newell)', () => {
+    test('quad normal is (0,0,1) in the XY plane', () => {
+      const face = buildZPlaneFace([[0, 0], [1, 0], [1, 1], [0, 1]]);
+      const normal = new Vector3();
+      face.getNormal(normal);
+      expect(normal.x).toBeCloseTo(0, 6);
+      expect(normal.y).toBeCloseTo(0, 6);
+      expect(normal.z).toBeCloseTo(1, 6);
+    });
+
+    test('pentagon normal is (0,0,1)', () => {
+      const face = buildZPlaneFace([[1, 0], [0.309, 0.951], [-0.809, 0.588], [-0.809, -0.588], [0.309, -0.951]]);
+      const normal = new Vector3();
+      face.getNormal(normal);
+      expect(normal.z).toBeCloseTo(1, 6);
+    });
+
+    test('is re-callable and reflects the current topology', () => {
+      const struct = new HalfedgeDS();
+      const v0 = struct.addVertex(new Vector3(0, 0, 0));
+      const v1 = struct.addVertex(new Vector3(2, 0, 0));
+      const v2 = struct.addVertex(new Vector3(2, 2, 0));
+      const v3 = struct.addVertex(new Vector3(0, 2, 0));
+      const v0v1 = struct.addEdge(v0, v1);
+      const v1v2 = struct.addEdge(v1, v2);
+      const v2v3 = struct.addEdge(v2, v3);
+      const v3v0 = struct.addEdge(v3, v0);
+      const face = struct.addFace([v0v1, v1v2, v2v3, v3v0]);
+
+      const before = new Vector3();
+      face.getNormal(before);
+      expect(before.z).toBeCloseTo(1, 6);
+
+      // Mutate topology (split an edge -> pentagon) and recompute
+      struct.splitEdge(v0v1, new Vector3(1, 0, 0));
+      const after = new Vector3();
+      face.getNormal(after);
+      expect(after.z).toBeCloseTo(1, 6);
+    });
+  });
+
+  describe('size', () => {
+    test('triangle reports 3', () => {
+      const { face } = createSingleTriangle();
+      expect(face.size).toBe(3);
+    });
+
+    test('quad reports 4', () => {
+      const face = buildZPlaneFace([[0, 0], [1, 0], [1, 1], [0, 1]]);
+      expect(face.size).toBe(4);
+    });
+
+    test('pentagon reports 5', () => {
+      const face = buildZPlaneFace([[1, 0], [0, 1], [-1, 0], [-0.5, -1], [0.5, -1]]);
+      expect(face.size).toBe(5);
     });
   });
 
