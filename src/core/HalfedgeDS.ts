@@ -27,6 +27,8 @@ import { setFromPolygons } from '../operations/setFromPolygons';
 import { toGeometry } from '../operations/toGeometry';
 import { tessellate } from '../operations/tessellate';
 import { updateFaceNormal } from '../operations/updateFaceNormal';
+import { joinFaces, joinFacesAcrossEdge } from '../operations/joinFaces';
+import { dissolveVertex } from '../operations/dissolveVertex';
 import { clearArray } from '../utils/array';
 
 
@@ -391,6 +393,39 @@ export class HalfedgeDS {
   splitEdge(halfedge: Halfedge, position: Vector3, tolerance = 1e-10) {
     this.invalidateTessellation();
     return splitEdge(this, halfedge, position, tolerance);
+  }
+
+  /**
+   * Merges the two faces incident to `halfedge` into a single n-gon
+   * (`BM_faces_join_pair`). The face on `halfedge`'s side survives.
+   *
+   * @returns The surviving (merged) face.
+   * @throws if the edge has no face on either side.
+   */
+  joinFacesAcrossEdge(halfedge: Halfedge): Face {
+    this.invalidateTessellation();
+    return joinFacesAcrossEdge(this, halfedge);
+  }
+
+  /**
+   * Merges an edge-connected set of faces into one n-gon (`BM_faces_join`).
+   *
+   * @returns The surviving (merged) face.
+   * @throws on empty/duplicate/non-member input, or a non edge-connected region.
+   */
+  joinFaces(faces: Face[]): Face {
+    this.invalidateTessellation();
+    return joinFaces(this, faces);
+  }
+
+  /**
+   * Dissolves a vertex: merges its incident faces and removes it
+   * (`BM_vert_dissolve`). Guards reject isolated, double-edge, and double-face
+   * (non-manifold) vertices; degenerate faces left behind are pruned.
+   */
+  dissolveVertex(vertex: Vertex): void {
+    this.invalidateTessellation();
+    return dissolveVertex(this, vertex);
   }
 
 }
