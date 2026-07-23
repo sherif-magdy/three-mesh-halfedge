@@ -14,6 +14,8 @@ import { BufferGeometry, Vector3 } from 'three';
 import { Face } from './Face';
 import { Vertex } from './Vertex';
 import { Halfedge } from './Halfedge';
+import { AttributeLayer } from './AttributeLayer';
+import type { AttributeLayerInput } from './AttributeLayer';
 import { addEdge } from '../operations/addEdge';
 import { addFace } from '../operations/addFace';
 import { addVertex } from '../operations/addVertex';
@@ -50,6 +52,15 @@ export class HalfedgeDS {
   private _tessellationCache: number[][] | null = null;
   private _tessellationDirty = true;
 
+  // Per-corner attribute layers, keyed by name. Each layer's data is a flat
+  // Float32Array indexed by halfedge array position (see AttributeLayer).
+  private readonly _layers = new Map<string, AttributeLayer>();
+
+  // halfedge -> array index, rebuilt on ingest/copy. Powers the per-corner read
+  // API (halfedgeIndex). Falls back to an O(n) lookup for halfedges added by an
+  // edit op since the last ingest (attribute carry-through is a later concern).
+  private readonly _halfedgeIndex = new Map<Halfedge, number>();
+
   /**
    * Sets the halfedge structure from a BufferGeometry.
    * @param geometry BufferGeometry to read
@@ -81,14 +92,18 @@ export class HalfedgeDS {
    *                     strictly increasing.
    * @param cornerVerts  Per-corner vertex index into `positions`.
    * @param tolerance    Vertex-merge tolerance (default = 1e-10).
+   * @param layers       Optional per-corner attribute layers (uv/normal/tangent,
+   *                     arbitrary itemSize), aligned to the run-length corner
+   *                     order of `cornerVerts`.
    */
   setFromPolygons(
       positions: Float32Array | number[],
       faceOffsets: number[],
       cornerVerts: number[],
-      tolerance = 1e-10) {
+      tolerance = 1e-10,
+      layers?: Record<string, AttributeLayerInput>) {
     this.invalidateTessellation();
-    return setFromPolygons(this, positions, faceOffsets, cornerVerts, tolerance);
+    return setFromPolygons(this, positions, faceOffsets, cornerVerts, tolerance, layers);
   }
 
   /**
@@ -149,6 +164,110 @@ export class HalfedgeDS {
     this._tessellationCache = null;
   }
 
+  // -------------------------------------------------------------------------
+  // Per-corner attribute layers
+  // -------------------------------------------------------------------------
+
+  /** Names of all stored attribute layers. */
+  getAttributeNames(): string[] {
+    return Array.from(this._layers.keys());
+  }
+
+  /** `true` if a layer named `name` is stored. */
+  hasAttribute(name: string): boolean {
+    return this._layers.has(name);
+  }
+
+  /**
+   * Returns the layer named `name`, or `null` if absent. Missing layers never
+   * throw — callers can branch on the result.
+   */
+  getAttribute(name: string): AttributeLayer | null {
+    return this._layers.get(name) ?? null;
+  }
+
+  /**
+   * Creates (or replaces) a layer named `name` sized to the current halfedge
+   * count. Call after the topology is built (e.g. at the end of an ingest).
+   * @returns The new layer.
+   */
+  createAttribute(name: string, itemSize: number): AttributeLayer {
+    const layer = new AttributeLayer(name, itemSize, this.halfedges.length);
+    this._layers.set(name, layer);
+    return layer;
+  }
+
+  /** Removes the layer named `name`. `true` if it existed. */
+  removeAttribute(name: string): boolean {
+    return this._layers.delete(name);
+  }
+
+  /** Removes every attribute layer. */
+  clearAttributes(): void {
+    this._layers.clear();
+  }
+
+  /**
+   * Array index of `halfedge` within {@link halfedges}, for indexing into
+   * attribute layer data. Returns -1 if the halfedge is not tracked.
+   *
+   * The cached index map is rebuilt by ingest/copy ({@link rebuildHalfedgeIndex});
+   * for a halfedge added by an edit op since the last rebuild, this falls back
+   * to an O(n) scan (attribute carry-through across edits is a later concern).
+   */
+  halfedgeIndex(halfedge: Halfedge): number {
+    const cached = this._halfedgeIndex.get(halfedge);
+    if (cached !== undefined) {
+      return cached;
+    }
+    return this.halfedges.indexOf(halfedge);
+  }
+
+  /**
+   * Rebuilds the halfedge -> index map from the current {@link halfedges}
+   * array. Called automatically by the ingest operations and {@link copy}.
+   * Re-call after manually rebuilding topology if you then read attributes.
+   */
+  rebuildHalfedgeIndex(): void {
+    this._halfedgeIndex.clear();
+    for (let i = 0; i < this.halfedges.length; i++) {
+      this._halfedgeIndex.set(this.halfedges[i], i);
+    }
+  }
+
+  /**
+   * Reads the per-corner values of layer `name` at `halfedge` into `out`
+   * (`out.length >= itemSize`; reuse it across calls to avoid allocations).
+   * Returns `true` if the layer exists and the halfedge is a tracked corner,
+   * `false` otherwise (`out` left untouched — missing layers never throw).
+   *
+   * Typical per-face-loop read:
+   * ```ts
+   * const uv = struct.getAttribute('uv');          // null if absent
+   * const out = new Array<number>(uv?.itemSize ?? 0);
+   * for (const he of face.halfedge.nextLoop()) {
+   *   if (struct.getAttributeValues('uv', he, out)) {
+   *     // use out[0], out[1], ...
+   *   }
+   * }
+   * ```
+   */
+  getAttributeValues(name: string, halfedge: Halfedge, out: number[]): boolean {
+    const layer = this._layers.get(name);
+    if (!layer) {
+      return false;
+    }
+    const idx = this.halfedgeIndex(halfedge);
+    if (idx < 0) {
+      return false;
+    }
+    const base = idx * layer.itemSize;
+    for (let c = 0; c < layer.itemSize; c++) {
+      out[c] = layer.data[base + c];
+    }
+    return true;
+  }
+
   /**
    * Returns an array of all the halfedge loops in the structure.
    * 
@@ -182,6 +301,8 @@ export class HalfedgeDS {
     clearArray(this.faces);
     clearArray(this.vertices);
     clearArray(this.halfedges);
+    this.clearAttributes();
+    this._halfedgeIndex.clear();
     Vertex.resetIdCounter();
   }
 
@@ -195,12 +316,15 @@ export class HalfedgeDS {
    * @param positions Flat vertex positions, length = 3 * vertCount.
    * @param polygons  Per-polygon corner-vertex-index loops.
    * @param tolerance Vertex-merge tolerance (default = 1e-10).
+   * @param layers    Optional per-corner attribute layers, aligned to the
+   *                  concatenated polygon corner order (== run-length order).
    * @returns A new HalfedgeDS built from the polygons.
    */
   static fromPolygons(
       positions: Float32Array | number[],
       polygons: number[][],
-      tolerance = 1e-10): HalfedgeDS {
+      tolerance = 1e-10,
+      layers?: Record<string, AttributeLayerInput>): HalfedgeDS {
     const faceOffsets = [0];
     const cornerVerts = new Array<number>();
     for (const polygon of polygons) {
@@ -210,7 +334,7 @@ export class HalfedgeDS {
       faceOffsets.push(cornerVerts.length);
     }
     const struct = new HalfedgeDS();
-    struct.setFromPolygons(positions, faceOffsets, cornerVerts, tolerance);
+    struct.setFromPolygons(positions, faceOffsets, cornerVerts, tolerance, layers);
     return struct;
   }
 
@@ -271,6 +395,19 @@ export class HalfedgeDS {
       const nv = vertexMap.get(v)!;
       nv.halfedge = v.halfedge ? halfedgeMap.get(v.halfedge)! : null;
     }
+
+    // Deep-copy attribute layers. Layer data is indexed by halfedge array
+    // position, and copy() pushes halfedges in the same order as `other`, so a
+    // Float32Array slice preserves the correspondence (an undo snapshot keeps
+    // its attributes and is fully independent of the source).
+    for (const name of other.getAttributeNames()) {
+      const src = other.getAttribute(name);
+      if (src) {
+        const layer = this.createAttribute(name, src.itemSize);
+        layer.data = src.data.slice();
+      }
+    }
+    this.rebuildHalfedgeIndex();
 
     return this;
   }

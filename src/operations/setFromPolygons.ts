@@ -2,6 +2,7 @@ import { BufferAttribute, Vector3 } from "three";
 import { Halfedge } from "../core/Halfedge";
 import { HalfedgeDS } from "../core/HalfedgeDS";
 import { Vertex } from "../core/Vertex";
+import type { AttributeLayerInput } from "../core/AttributeLayer";
 import { computeVerticesIndexArray } from "./setFromGeometry";
 import { lazy } from "../utils/lazy";
 
@@ -38,13 +39,18 @@ const pos_ = lazy(() => new Vector3());
  *                     increasing.
  * @param cornerVerts  Per-corner vertex index into `positions`.
  * @param tolerance    Vertex-merge tolerance (default 1e-10).
+ * @param layers       Optional per-corner attribute layers (uv/normal/tangent,
+ *                     arbitrary itemSize), aligned to the run-length corner
+ *                     order of `cornerVerts`. Each layer's `data.length` must
+ *                     equal `cornerVerts.length * itemSize`.
  */
 export function setFromPolygons(
     struct: HalfedgeDS,
     positions: Float32Array | number[],
     faceOffsets: number[],
     cornerVerts: number[],
-    tolerance = 1e-10) {
+    tolerance = 1e-10,
+    layers?: Record<string, AttributeLayerInput>) {
 
   // Validate before clearing so a malformed call never wipes an existing DS.
   validatePolygonMesh(positions, faceOffsets, cornerVerts);
@@ -64,6 +70,10 @@ export function setFromPolygons(
   // "srcId-dstId" -> Halfedge, so a shared edge resolves to the same halfedge
   // pair (its twin registered under the reverse hash). Mirrors setFromGeometry.
   const halfedgeMap = new Map<string, Halfedge>();
+
+  // face-loop halfedge -> its corner index within the flat layer data (== its
+  // index in `cornerVerts`), used to map per-corner attributes after the build.
+  const cornerLayerOffset = new Map<Halfedge, number>();
 
   const faceCount = faceOffsets.length - 1;
 
@@ -109,9 +119,64 @@ export function setFromPolygons(
       }
 
       loopHalfedges[i] = h1;
+
+      // h1 is this corner's halfedge; its flat layer offset is the corner's
+      // index in `cornerVerts` (== the run-length corner order of `layers`).
+      cornerLayerOffset.set(h1, start + i);
     }
 
     struct.addFace(loopHalfedges);
+  }
+
+  ingestPolygonLayers(struct, layers, cornerVerts.length, cornerLayerOffset);
+
+  // halfedge -> array index, powering the per-corner read API.
+  struct.rebuildHalfedgeIndex();
+}
+
+/**
+ * Maps the optional per-corner `layers` into per-corner layers on `struct`,
+ * indexed by halfedge array position. `cornerLayerOffset` maps each face-loop
+ * halfedge to its index in the flat layer data. Absent when `layers` is omitted
+ * (graceful: the structure simply carries no attributes).
+ */
+function ingestPolygonLayers(
+    struct: HalfedgeDS,
+    layers: Record<string, AttributeLayerInput> | undefined,
+    cornerCount: number,
+    cornerLayerOffset: Map<Halfedge, number>) {
+
+  if (!layers) {
+    return;
+  }
+
+  for (const name of Object.keys(layers)) {
+    const input = layers[name];
+    const itemSize = input.itemSize;
+    const expected = cornerCount * itemSize;
+    if (input.data.length !== expected) {
+      throw new Error(
+        `Attribute layer '${name}' has ${input.data.length} values; ` +
+        `expected ${cornerCount} corners * ${itemSize} = ${expected}.`);
+    }
+    const layer = struct.createAttribute(name, itemSize);
+
+    const halfedges = struct.halfedges;
+    for (let i = 0; i < halfedges.length; i++) {
+      const he = halfedges[i];
+      if (he.face === null) {
+        continue; // free/boundary halfedge — not a corner
+      }
+      const cornerIdx = cornerLayerOffset.get(he);
+      if (cornerIdx === undefined) {
+        continue;
+      }
+      const dstBase = i * itemSize;
+      const srcBase = cornerIdx * itemSize;
+      for (let c = 0; c < itemSize; c++) {
+        layer.data[dstBase + c] = input.data[srcBase + c];
+      }
+    }
   }
 }
 

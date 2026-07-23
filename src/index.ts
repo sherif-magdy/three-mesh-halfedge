@@ -2,6 +2,8 @@ export {HalfedgeDS} from './core/HalfedgeDS';
 export {Face} from './core/Face';
 export {Vertex} from './core/Vertex';
 export {Halfedge} from './core/Halfedge';
+export {AttributeLayer} from './core/AttributeLayer';
+export type {AttributeLayerInput} from './core/AttributeLayer';
 export {clearArray, removeFromArray} from './utils/array';
 export {toGeometry} from './operations/toGeometry';
 export {tessellate} from './operations/tessellate';

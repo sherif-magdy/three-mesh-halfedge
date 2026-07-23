@@ -53,10 +53,27 @@ export function setFromGeometry(
     }
   }
 
+  // Raw source-row index for a face-corner's attributes. Attributes
+  // (uv/normal/tangent) are per source-row, NOT per welded vertex: two source
+  // rows at the same position can carry different UVs/normals (a hard-edge
+  // split), so the attribute row is the index BEFORE applying the position
+  // weld. This is what lets the split survive setFromGeometry's vertex merge.
+  let getCornerAttributeIndex = function(bufferIndex: number) {
+    return bufferIndex;
+  };
+  if (indexBuffer) {
+    getCornerAttributeIndex = function(bufferIndex: number) {
+      return indexBuffer.array[bufferIndex];
+    };
+  }
+
   // Save halfedges in a map where with a hash <src-vertex-id>
   // their hash is index1-index2, so that it is easier to find the twin
   const halfedgeMap = new Map<string, Halfedge>();
   const vertexMap = new Map<number, Vertex>();
+
+  // face-loop halfedge -> its raw source-row index (for attribute ingest).
+  const cornerSourceIndex = new Map<Halfedge, number>();
 
   const loopHalfedges = new Array<Halfedge>(3).fill({} as Halfedge);
 
@@ -96,9 +113,65 @@ export function setFromGeometry(
       }
       
       loopHalfedges[i] = h1;
+
+      // h1 is this corner's halfedge (origin = corner vertex). Record its raw
+      // source-row so per-corner attributes can be mapped after the build.
+      cornerSourceIndex.set(h1, getCornerAttributeIndex(faceIndex * 3 + i));
     }
 
     struct.addFace(loopHalfedges);
+  }
+
+  // Map per-corner attributes from the source geometry into the structure.
+  ingestGeometryAttributes(struct, geometry, cornerSourceIndex);
+
+  // halfedge -> array index, powering the per-corner read API.
+  struct.rebuildHalfedgeIndex();
+}
+
+/**
+ * Copies every non-position attribute of `geometry` (uv/normal/tangent and any
+ * other) into per-corner layers on `struct`, indexed by halfedge array position.
+ *
+ * `cornerSourceIndex` maps each face-loop halfedge to its raw source-row index
+ * in the geometry's attribute arrays. Reading from the raw row (NOT the welded
+ * vertex) is what preserves hard-edge splits: two corners welding to one vertex
+ * but coming from different source rows keep their distinct UVs/normals.
+ *
+ * Layers are sized to the current halfedge count; free/boundary halfedges
+ * (no face) are skipped — only face-loop corners carry attribute data.
+ */
+function ingestGeometryAttributes(
+    struct: HalfedgeDS,
+    geometry: BufferGeometry,
+    cornerSourceIndex: Map<Halfedge, number>) {
+
+  const names = Object.keys(geometry.attributes).filter(n => n !== 'position');
+  if (names.length === 0) {
+    return;
+  }
+
+  for (const name of names) {
+    const attr = geometry.getAttribute(name);
+    const itemSize = attr.itemSize;
+    const layer = struct.createAttribute(name, itemSize);
+
+    const halfedges = struct.halfedges;
+    for (let i = 0; i < halfedges.length; i++) {
+      const he = halfedges[i];
+      // Free/boundary halfedge — not a corner; leaves the slot zeroed.
+      if (he.face === null) {
+        continue;
+      }
+      const srcRow = cornerSourceIndex.get(he);
+      if (srcRow === undefined) {
+        continue;
+      }
+      const dstBase = i * itemSize;
+      for (let c = 0; c < itemSize; c++) {
+        layer.data[dstBase + c] = attr.getComponent(srcRow, c);
+      }
+    }
   }
 }
 
