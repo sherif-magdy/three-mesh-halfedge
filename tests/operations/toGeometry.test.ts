@@ -443,9 +443,12 @@ describe('toGeometry – roundtrip', () => {
     struct.setFromGeometry(original);
     const result = toGeometry(struct);
 
-    // Box has 12 triangles and 8 unique vertices
+    // Box has 12 triangles. It carries normal+uv, now ingested per-corner and
+    // emitted un-welded: 8 positions x 3 hard-edge normals = 24 rows.
     expect(triangleCount(result)).toBe(12);
-    expect(result.getAttribute('position').count).toBe(8);
+    expect(result.getAttribute('position').count).toBe(24);
+    expect(result.hasAttribute('normal')).toBe(true);
+    expect(result.hasAttribute('uv')).toBe(true);
 
     // Verify all original positions are present in the result
     const origPositions = getPositions(original);
@@ -779,7 +782,12 @@ describe('toGeometry – complex operation chains', () => {
 
     const geo = toGeometry(struct);
     expect(triangleCount(geo)).toBe(11);
-    expect(geo.getAttribute('position').count).toBe(8); // vertices still there
+    // Vertices are preserved: all 8 unique cube positions are still present
+    // (emitted un-welded with their per-corner normals, so more than 8 rows).
+    const positions = getPositions(geo);
+    const uniquePositions = new Set(
+      positions.map((p) => `${p.x},${p.y},${p.z}`));
+    expect(uniquePositions.size).toBe(8);
   });
 
   test('BoxGeometry → splitEdge → toGeometry increases triangles', () => {
