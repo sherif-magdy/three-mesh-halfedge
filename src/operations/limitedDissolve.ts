@@ -1,8 +1,10 @@
 import { Vector3 } from 'three';
 import { Halfedge } from '../core/Halfedge';
 import { HalfedgeDS } from '../core/HalfedgeDS';
+import { Vertex } from '../core/Vertex';
 import { Face } from '../core/Face';
 import { joinFacesAcrossEdge } from './joinFaces';
+import { removeFromArray } from '../utils/array';
 
 interface HeapItem {
   cost: number;
@@ -140,6 +142,15 @@ export function limitedDissolve(struct: HalfedgeDS, angleLimit: number): void {
       break; // heap min is the global min — nothing cheaper remains to dissolve
     }
 
+    if (he.face === he.twin.face) {
+      // Self-sided edge left by a cyclic coplanar merge (e.g. a grid centre
+      // vertex): a 2-face join can't remove it. It is a spike at an interior
+      // vertex, so splice it out and isolate the tip — yielding the clean
+      // merged perimeter joinFaces would produce.
+      removeSelfSidedSpike(struct, he, live);
+      continue;
+    }
+
     const twin = he.twin;
     const survivor: Face = joinFacesAcrossEdge(struct, he);
     live.delete(he);
@@ -150,4 +161,50 @@ export function limitedDissolve(struct: HalfedgeDS, angleLimit: number): void {
       pushEdge(e);
     }
   }
+}
+
+/**
+ * Removes a self-sided halfedge pair (both sides in the same face) that a cyclic
+ * coplanar merge leaves as a spike at an interior vertex. Splices the spike out
+ * of the face loop and isolates its tip, leaving the clean merged perimeter.
+ * Non-spike self-sided chords (which would split the face) are left untouched.
+ */
+function removeSelfSidedSpike(struct: HalfedgeDS, he: Halfedge, live: Set<Halfedge>): void {
+  const twin = he.twin;
+  const face = he.face!;
+  let tip: Vertex;
+  let anchor: Halfedge;
+
+  if (he.next === twin) {
+    anchor = he.prev;
+    anchor.next = twin.next;
+    twin.next.prev = anchor;
+    tip = twin.vertex;
+  } else if (twin.next === he) {
+    anchor = twin.prev;
+    anchor.next = he.next;
+    he.next.prev = anchor;
+    tip = he.vertex;
+  } else {
+    return; // not a simple spike; leave untouched
+  }
+
+  if (face.halfedge === he || face.halfedge === twin) {
+    face.halfedge = anchor;
+  }
+
+  removeFromArray(struct.halfedges, he);
+  removeFromArray(struct.halfedges, twin);
+  live.delete(he);
+  live.delete(twin);
+
+  // Repoint the tip to any surviving outgoing halfedge (null if now isolated).
+  let next: Halfedge | null = null;
+  for (const h of struct.halfedges) {
+    if (h.vertex === tip) {
+      next = h;
+      break;
+    }
+  }
+  tip.halfedge = next;
 }
