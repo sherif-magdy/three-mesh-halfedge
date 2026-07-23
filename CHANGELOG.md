@@ -1,5 +1,19 @@
 # Changelog
 
+## [Unreleased](https://github.com/sherif-magdy/three-mesh-halfedge/compare/v2.3.0...HEAD)
+
+
+### Features
+
+* **core:** add n-gon tessellation (ear-clip) with mutation dirty-flag ([eaf7415](https://github.com/sherif-magdy/three-mesh-halfedge/commit/eaf74155ba2e7e7cd69ce03d5571fa37200290d2))
+* **operations:** add dissolve primitives (joinFaces/joinFacesAcrossEdge/dissolveVertex) ([5b901b6](https://github.com/sherif-magdy/three-mesh-halfedge/commit/5b901b60fe30a79159a59285be7509ec1a9acf94))
+* **operations:** add limited dissolve by face-normal angle ([16a5f6f](https://github.com/sherif-magdy/three-mesh-halfedge/commit/16a5f6fc0e8e8ce66ce2d98e776bd63cb41158cc))
+
+
+### Bug Fixes
+
+* **operations:** dissolve self-sided spikes in limitedDissolve ([ec01183](https://github.com/sherif-magdy/three-mesh-halfedge/commit/ec011832f23469f6eef3dffbea7228d2a03d988c))
+
 ## [2.3.0](https://github.com/sherif-magdy/three-mesh-halfedge/compare/v2.2.0...v2.3.0) (2026-07-22)
 
 

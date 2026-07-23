@@ -81,6 +81,36 @@ for (const face of struct.faces) {
 }
 console.log("Front faces", array);
 ```
+## Mesh operations
+
+Beyond building and querying, the structure supports topology edits. Each is both a method on `HalfedgeDS` and a free function exported from the package.
+
+##### Triangulate n-gons (concave-safe)
+```ts
+// Ear-clip every face into triangles — correct for concave polygons, unlike
+// toGeometry()'s fan. Cached; recomputed only when the topology changes.
+const tris = struct.tessellate(); // [[vId0, vId1, vId2], ...]
+```
+
+##### Dissolve edges within an angle (limited dissolve)
+```ts
+// Blender "Dissolve Limited": merge edges whose adjacent faces meet within
+// the given dihedral angle (radians). Cheapest edges merge first.
+struct.limitedDissolve(THREE.MathUtils.degToRad(5));
+```
+
+##### Dissolve a vertex
+```ts
+// Merge an interior vertex's incident faces into one n-gon and drop the vertex.
+struct.dissolveVertex(vertex);
+```
+
+##### Join the two faces across an edge
+```ts
+// Merge the two faces incident to a halfedge into a single n-gon.
+const merged = struct.joinFacesAcrossEdge(halfedge);
+```
+
 ## Useful links and references
 
 [Kalle Rutanen Homepage - Halfedge data structures](https://kaba.hilvi.org/homepage/blog/halfedge/halfedge.htm)
