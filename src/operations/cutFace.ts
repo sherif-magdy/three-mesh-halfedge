@@ -99,8 +99,21 @@ export function cutFace(
     v2.halfedge = h2;
   }
 
-  struct.halfedges.push(h1);
-  struct.halfedges.push(h2);
+  struct.pushHalfedge(h1);
+  struct.pushHalfedge(h2);
+
+  // Per-corner attributes: v1/v2 already belong to `face`, so h1 (origin v1)
+  // and h2 (origin v2) inherit the original corner values captured above
+  // (out1/out2 leave v1/v2). The existing v1/v2 slots (out1/out2) are reused
+  // unchanged; only the new halfedges need the copy.
+  if (struct.getAttributeNames().length > 0) {
+    if (out1) {
+      struct.copyCornerValues(h1, out1);
+    }
+    if (out2) {
+      struct.copyCornerValues(h2, out2);
+    }
+  }
 
   // In the case where we connect isolated halfedge (without face) to this face, 
   // We update face ref loop

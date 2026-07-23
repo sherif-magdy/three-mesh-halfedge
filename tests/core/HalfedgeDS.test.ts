@@ -231,17 +231,20 @@ describe('HalfedgeDS', () => {
       const { struct } = createClosedTetrahedron();
       const clone = struct.clone();
 
-      expect(clone).not.toBe(struct);
-      expect(clone.vertices).toHaveLength(struct.vertices.length);
-      expect(clone.halfedges).toHaveLength(struct.halfedges.length);
-      expect(clone.faces).toHaveLength(struct.faces.length);
+      // Reference + count checks via Object.is / numbers rather than passing the
+      // mesh objects to expect(): vitest deep-clones the received value, and a
+      // cyclic halfedge mesh clones slowly enough to flake the 5s timeout.
+      expect(Object.is(clone, struct)).toBe(false);
+      expect(clone.vertices.length).toBe(struct.vertices.length);
+      expect(clone.halfedges.length).toBe(struct.halfedges.length);
+      expect(clone.faces.length).toBe(struct.faces.length);
 
       // Distinct object identities — not shared references
       for (let i = 0; i < struct.vertices.length; i++) {
-        expect(clone.vertices[i]).not.toBe(struct.vertices[i]);
+        expect(Object.is(clone.vertices[i], struct.vertices[i])).toBe(false);
       }
       for (let i = 0; i < struct.halfedges.length; i++) {
-        expect(clone.halfedges[i]).not.toBe(struct.halfedges[i]);
+        expect(Object.is(clone.halfedges[i], struct.halfedges[i])).toBe(false);
       }
     });
 

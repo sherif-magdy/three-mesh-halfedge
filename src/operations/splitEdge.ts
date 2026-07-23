@@ -70,8 +70,26 @@ export function splitEdge(
   twin.prev = newTwin;
 
   struct.vertices.push(newVertex);
-  struct.halfedges.push(newHalfedge);
-  struct.halfedges.push(newTwin);
+  struct.pushHalfedge(newHalfedge);
+  struct.pushHalfedge(newTwin);
+
+  // Per-corner attributes: each new corner at v interpolates along its OWN
+  // face's edge, so a hard edge stays split (never blended across the twin).
+  if (struct.getAttributeNames().length > 0) {
+    const distAB = A.position.distanceTo(B.position);
+    const t = distAB > tolerance ? A.position.distanceTo(position) / distAB : 0;
+
+    // halfedge.face side: A corner = halfedge (origin A), B corner = nextHalfedge
+    // (origin B). newHalfedge (origin v) takes their t-interpolation.
+    struct.interpolateCorner(newHalfedge, halfedge, nextHalfedge, t);
+
+    // twin.face side: the old B corner still lives in twin's slot (its origin
+    // moved to v, but the slot data is unchanged). Move that B value to newTwin
+    // (the new B corner), then interpolate twin (the new v corner) from A
+    // (twin.next, origin A) and that B value.
+    struct.copyCornerValues(newTwin, twin);
+    struct.interpolateCorner(twin, twin.next, twin, t);
+  }
 
   return newVertex;
 }

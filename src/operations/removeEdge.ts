@@ -1,7 +1,6 @@
 import { Halfedge } from "../core/Halfedge";
 import { HalfedgeDS } from "../core/HalfedgeDS";
 import { removeFace } from "./removeFace";
-import { removeFromArray } from "../utils/array";
 
 export function removeEdge(
     struct: HalfedgeDS,
@@ -61,7 +60,8 @@ export function removeEdge(
     twin.prev.next = halfedge.next
   }
 
-  removeFromArray(struct.halfedges, halfedge);
-  removeFromArray(struct.halfedges, twin);
+  // Batch the twin-pair removal through the chokepoint so the index map and
+  // every attribute layer compact together (one O(n) pass, aligned rows).
+  struct.removeHalfedges([halfedge, twin]);
 
 }

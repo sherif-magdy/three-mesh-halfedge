@@ -141,13 +141,15 @@ function mergeFacesIntoOne(
   }
 
   // Drop internal halfedges; repoint any vertex whose anchor was removed.
+  // Collect stale anchors first (reads the live array), then batch-remove via
+  // the chokepoint so the index map and attribute layers compact together.
   const staleVertices = new Set<Vertex>();
   for (const he of internalHalfedges) {
     if (he.vertex.halfedge === he) {
       staleVertices.add(he.vertex);
     }
-    removeFromArray(struct.halfedges, he);
   }
+  struct.removeHalfedges(internalHalfedges);
   for (const v of staleVertices) {
     let anchor: Halfedge | null = null;
     for (const he of struct.halfedges) {

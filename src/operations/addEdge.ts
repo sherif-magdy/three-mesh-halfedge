@@ -75,8 +75,11 @@ export function addEdge(
     v2.halfedge = h2;
   }
 
-  struct.halfedges.push(h1);
-  struct.halfedges.push(h2);
+  // Free twin pair: no incident face, so no authored corner data — the new
+  // slots stay zero-initialised. Routed through the chokepoint so the index map
+  // and any layers stay aligned.
+  struct.pushHalfedge(h1);
+  struct.pushHalfedge(h2);
 
   return h1;
 }

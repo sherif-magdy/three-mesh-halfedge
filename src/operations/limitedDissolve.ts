@@ -4,7 +4,6 @@ import { HalfedgeDS } from '../core/HalfedgeDS';
 import { Vertex } from '../core/Vertex';
 import { Face } from '../core/Face';
 import { joinFacesAcrossEdge } from './joinFaces';
-import { removeFromArray } from '../utils/array';
 
 interface HeapItem {
   cost: number;
@@ -193,8 +192,9 @@ function removeSelfSidedSpike(struct: HalfedgeDS, he: Halfedge, live: Set<Halfed
     face.halfedge = anchor;
   }
 
-  removeFromArray(struct.halfedges, he);
-  removeFromArray(struct.halfedges, twin);
+  // Batch the spike's twin-pair removal through the chokepoint: compacts the
+  // index map and every attribute layer in one aligned pass.
+  struct.removeHalfedges([he, twin]);
   live.delete(he);
   live.delete(twin);
 

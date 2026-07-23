@@ -41,10 +41,20 @@ export class HalfedgeDS {
   // Float32Array indexed by halfedge array position (see AttributeLayer).
   private readonly _layers = new Map<string, AttributeLayer>();
 
-  // halfedge -> array index, rebuilt on ingest/copy. Powers the per-corner read
-  // API (halfedgeIndex). Falls back to an O(n) lookup for halfedges added by an
-  // edit op since the last ingest (attribute carry-through is a later concern).
-  private readonly _halfedgeIndex = new Map<Halfedge, number>();
+  // halfedge -> array index, maintained incrementally by pushHalfedge/
+  // removeHalfedges and rebuilt on ingest/copy. Powers the per-corner read API
+  // (halfedgeIndex); every edit op routes array mutation through those
+  // chokepoints so the index and the layer arrays stay aligned and the read
+  // path stays O(1). A WeakMap (not Map) so the Halfedge keys are weakly held
+  // and the lookup is invisible to serializers/structuredClone — otherwise
+  // walking a Map of cyclic halfedge keys (e.g. vitest's deep-clone on
+  // `expect(struct)`) is pathologically slow.
+  private _halfedgeIndex = new WeakMap<Halfedge, number>();
+
+  // Counts halfedgeIndex() O(n) indexOf fallbacks since the last
+  // rebuildHalfedgeIndex(). Stays 0 when every edit routes through
+  // pushHalfedge/removeHalfedges; the carry-through tests assert this.
+  _indexFallbackCount = 0;
 
   /**
    * Sets the halfedge structure from a BufferGeometry.
@@ -196,28 +206,109 @@ export class HalfedgeDS {
    * Array index of `halfedge` within {@link halfedges}, for indexing into
    * attribute layer data. Returns -1 if the halfedge is not tracked.
    *
-   * The cached index map is rebuilt by ingest/copy ({@link rebuildHalfedgeIndex});
-   * for a halfedge added by an edit op since the last rebuild, this falls back
-   * to an O(n) scan (attribute carry-through across edits is a later concern).
+   * O(1) via the cached map for every halfedge when edit ops route through
+   * {@link pushHalfedge}/{@link removeHalfedges}; only an untracked halfedge
+   * (one pushed/removed outside the chokepoint) hits the O(n) `indexOf`
+   * fallback, which also bumps {@link _indexFallbackCount} for the tests.
    */
   halfedgeIndex(halfedge: Halfedge): number {
     const cached = this._halfedgeIndex.get(halfedge);
     if (cached !== undefined) {
       return cached;
     }
+    this._indexFallbackCount += 1;
     return this.halfedges.indexOf(halfedge);
   }
 
   /**
    * Rebuilds the halfedge -> index map from the current {@link halfedges}
-   * array. Called automatically by the ingest operations and {@link copy}.
-   * Re-call after manually rebuilding topology if you then read attributes.
+   * array. Called automatically by the ingest operations and {@link copy}, and
+   * by {@link removeHalfedges} after a compaction. Re-call after manually
+   * rebuilding topology if you then read attributes.
    */
   rebuildHalfedgeIndex(): void {
-    this._halfedgeIndex.clear();
+    this._halfedgeIndex = new WeakMap<Halfedge, number>();
+    this._indexFallbackCount = 0;
     for (let i = 0; i < this.halfedges.length; i++) {
       this._halfedgeIndex.set(this.halfedges[i], i);
     }
+  }
+
+  // -------------------------------------------------------------------------
+  // Halfedge-array mutation chokepoint
+  //
+  // All edit ops grow/shrink `halfedges` through these two methods instead of
+  // pushing/removing directly. They keep the per-corner attribute layers (flat
+  // Float32Arrays indexed by array position) and the `_halfedgeIndex` map
+  // aligned with the live array, so attributes survive topology edits.
+  // -------------------------------------------------------------------------
+
+  /**
+   * Appends `halfedge` to {@link halfedges}, grows every attribute layer by one
+   * zero-initialised slot, and registers the new index — the single growth
+   * path. Returns the new slot index. Ops then fill the slot (e.g.
+   * {@link interpolateCorner} / {@link copyCornerValues}).
+   */
+  pushHalfedge(halfedge: Halfedge): number {
+    this.halfedges.push(halfedge);
+    const idx = this.halfedges.length - 1;
+    for (const layer of this._layers.values()) {
+      const grown = new Float32Array(layer.data.length + layer.itemSize);
+      grown.set(layer.data);
+      layer.data = grown;
+    }
+    this._halfedgeIndex.set(halfedge, idx);
+    return idx;
+  }
+
+  /**
+   * Removes every halfedge in `toRemove` in one compaction pass: rebuilds
+   * {@link halfedges} without them, compacts every attribute layer (surviving
+   * rows shift down to close the freed slots), and rebuilds `_halfedgeIndex`.
+   * Batched so a multi-halfedge removal is O(n) once, not per element.
+   */
+  removeHalfedges(toRemove: Iterable<Halfedge>): void {
+    const removeSet = toRemove instanceof Set ? toRemove : new Set(toRemove);
+    if (removeSet.size === 0) {
+      return;
+    }
+
+    const old = this.halfedges;
+    const survivors: Halfedge[] = [];
+    const keepIdx: number[] = [];
+    let changed = false;
+    for (let i = 0; i < old.length; i++) {
+      if (removeSet.has(old[i])) {
+        changed = true;
+      } else {
+        survivors.push(old[i]);
+        keepIdx.push(i);
+      }
+    }
+    if (!changed) {
+      return;
+    }
+
+    // Compact the halfedge array in place (the field is readonly, so mutate
+    // rather than reassign). `survivors` was captured before the clear.
+    old.length = 0;
+    for (const he of survivors) {
+      old.push(he);
+    }
+
+    for (const layer of this._layers.values()) {
+      const is = layer.itemSize;
+      const compact = new Float32Array(keepIdx.length * is);
+      for (let out = 0; out < keepIdx.length; out++) {
+        const srcBase = keepIdx[out] * is;
+        const dstBase = out * is;
+        for (let c = 0; c < is; c++) {
+          compact[dstBase + c] = layer.data[srcBase + c];
+        }
+      }
+      layer.data = compact;
+    }
+    this.rebuildHalfedgeIndex();
   }
 
   /**
@@ -253,6 +344,86 @@ export class HalfedgeDS {
     return true;
   }
 
+  // -------------------------------------------------------------------------
+  // Per-corner value carry-through helpers (used by edit ops after pushing new
+  // slots). Each operates across every layer at once; all are no-ops when no
+  // layers exist, so the legacy no-layer path is unaffected.
+  // -------------------------------------------------------------------------
+
+  /**
+   * Writes `src`'s corner values into `dst`'s slot on every layer — the
+   * inheritance rule for ops that create a new corner at an existing vertex
+   * (e.g. cutFace's cut edge endpoints). Both must be tracked halfedges.
+   */
+  copyCornerValues(dst: Halfedge, src: Halfedge): void {
+    const d = this.halfedgeIndex(dst);
+    const s = this.halfedgeIndex(src);
+    if (d < 0 || s < 0) {
+      return;
+    }
+    for (const layer of this._layers.values()) {
+      const is = layer.itemSize;
+      const db = d * is;
+      const sb = s * is;
+      for (let c = 0; c < is; c++) {
+        layer.data[db + c] = layer.data[sb + c];
+      }
+    }
+  }
+
+  /**
+   * Writes the t-interpolation of the `heA`/`heB` corner values into `into`'s
+   * slot on every layer — the rule for a new corner placed along an edge
+   * (e.g. splitEdge). Per-layer strategy is name-driven via
+   * {@link interpolationStrategy}: `normal` is lerped then renormalised,
+   * `tangent` lerps xyz + renormalises (preserving `w`), everything else is a
+   * plain component-wise lerp. Safe when `into` is one of the endpoints.
+   */
+  interpolateCorner(
+      into: Halfedge, heA: Halfedge, heB: Halfedge, t: number): void {
+    const dst = this.halfedgeIndex(into);
+    const a = this.halfedgeIndex(heA);
+    const b = this.halfedgeIndex(heB);
+    if (dst < 0 || a < 0 || b < 0) {
+      return;
+    }
+    for (const layer of this._layers.values()) {
+      const is = layer.itemSize;
+      const data = layer.data;
+      const ob = dst * is;
+      const ab = a * is;
+      const bb = b * is;
+      for (let c = 0; c < is; c++) {
+        data[ob + c] = (1 - t) * data[ab + c] + t * data[bb + c];
+      }
+      const strat = this.interpolationStrategy(layer.name);
+      if (strat !== 'lerp' && is >= 3) {
+        // Renormalise the xyz prefix in place; for tangent (is 4) the w at
+        // ob+3 is left as the lerp (a valid sign-preserving handedness).
+        let x = data[ob], y = data[ob + 1], z = data[ob + 2];
+        const inv = 1 / Math.hypot(x, y, z);
+        data[ob] = x * inv;
+        data[ob + 1] = y * inv;
+        data[ob + 2] = z * inv;
+      }
+    }
+  }
+
+  /**
+   * Name-driven interpolation strategy. Override to customise per layer.
+   * `normal` -> renormalise the lerped vector; `tangent` -> renormalise xyz and
+   * keep `w`; anything else (uv, custom) -> plain component-wise lerp.
+   */
+  protected interpolationStrategy(name: string): 'lerp' | 'normalize3' | 'normalizeTangent' {
+    if (name === 'normal') {
+      return 'normalize3';
+    }
+    if (name === 'tangent') {
+      return 'normalizeTangent';
+    }
+    return 'lerp';
+  }
+
   /**
    * One representative halfedge per face loop in the structure.
    * Call `nextLoop()` on each entry to walk that loop.
@@ -280,7 +451,7 @@ export class HalfedgeDS {
     clearArray(this.vertices);
     clearArray(this.halfedges);
     this.clearAttributes();
-    this._halfedgeIndex.clear();
+    this._halfedgeIndex = new WeakMap<Halfedge, number>();
     Vertex.resetIdCounter();
   }
 
