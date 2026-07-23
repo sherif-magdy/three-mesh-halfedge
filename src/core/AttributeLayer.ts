@@ -19,11 +19,12 @@
  * (per face-loop halfedge) preserves that split; a per-vertex store would
  * silently lose one side of every hard edge on ingest.
  *
- * Attribute indices are valid for the ingest -> emit -> clone/copy lifecycle.
- * Carrying attributes *through* a topology edit op is a separate concern: the
- * owning structure rebuilds its index map on ingest/copy, but edit ops do not
- * yet maintain attribute slots (the read API degrades to an O(n) lookup for
- * halfedges added since the last ingest).
+ * Attribute indices stay valid across the ingest -> edit -> emit -> clone/copy
+ * lifecycle. Built-in topology edit ops carry attributes through: they grow and
+ * compact this array in lockstep with the halfedge array (via the owning
+ * structure's pushHalfedge/removeHalfedges chokepoint), so a corner's values
+ * follow the halfedge through splits/cuts/removals and halfedgeIndex() stays
+ * O(1). Consumer ops must use the same chokepoint to get the same behaviour.
  */
 
 /** Flat, per-corner input data used by the n-gon ingest path. */
