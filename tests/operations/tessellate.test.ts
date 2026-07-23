@@ -242,3 +242,102 @@ describe('tessellate – cache & dirty flag', () => {
     expect(after).toEqual(before);
   });
 });
+
+// ===========================================================================
+// 3D orientation, multi-reflex concavity, multi-face structs
+// ===========================================================================
+
+describe('tessellate – 3D & concave & multi-face', () => {
+
+  test('tilted hexagon (off the z=0 plane) -> 4 CCW triangles, area preserved', () => {
+    // Regular hexagon of radius 2 in the plane normal to (1,1,1).
+    const n = new Vector3(1, 1, 1).normalize();
+    const u = new Vector3().crossVectors(n, new Vector3(0, 0, 1)).normalize();
+    const v = new Vector3().crossVectors(n, u).normalize();
+    const R = 2;
+    const positions: number[] = [];
+    for (let k = 0; k < 6; k++) {
+      const a = (2 * Math.PI * k) / 6;
+      const p = new Vector3()
+        .addScaledVector(u, R * Math.cos(a))
+        .addScaledVector(v, R * Math.sin(a));
+      positions.push(p.x, p.y, p.z);
+    }
+    const struct = HalfedgeDS.fromPolygons(new Float32Array(positions), [[0, 1, 2, 3, 4, 5]]);
+    const tris = struct.tessellate();
+    expect(tris).toHaveLength(4);
+    expect(trisAlignWithFaceNormal(struct, tris)).toBe(true);
+    expect(totalArea(struct, tris)).toBeCloseTo(6 * Math.sqrt(3), 6);
+  });
+
+  test('concave U-shape (two reflex corners) -> 6 CCW triangles, area preserved', () => {
+    const corners: ReadonlyArray<readonly [number, number]> = [
+      [0, 0], [3, 0], [3, 3], [2, 3], [2, 1], [1, 1], [1, 3], [0, 3]];
+    const positions = new Float32Array(corners.flatMap(c => [c[0], c[1], 0]));
+    const struct = HalfedgeDS.fromPolygons(positions, [[0, 1, 2, 3, 4, 5, 6, 7]]);
+    const tris = struct.tessellate();
+    expect(tris).toHaveLength(6);
+    expect(trisAlignWithFaceNormal(struct, tris)).toBe(true);
+    expect(totalArea(struct, tris)).toBeCloseTo(polygonArea2D(corners), 6);
+  });
+
+  test('mixed face sizes (tri + quad + pentagon) -> 6 triangles total', () => {
+    const positions = new Float32Array([
+      0, 0, 0, 1, 0, 0, 0, 1, 0,                      // tri 0,1,2
+      3, 0, 0, 4, 0, 0, 4, 1, 0, 3, 1, 0,             // quad 3,4,5,6
+      6, 0, 0, 7, 0, 0, 7, 1, 0, 6.5, 1.5, 0, 6, 1, 0, // pentagon 7..11
+    ]);
+    const struct = HalfedgeDS.fromPolygons(positions, [
+      [0, 1, 2], [3, 4, 5, 6], [7, 8, 9, 10, 11],
+    ]);
+    expect(struct.tessellate()).toHaveLength(6);
+  });
+});
+
+// ===========================================================================
+// Cache invalidation by the remaining mutators
+// ===========================================================================
+
+describe('tessellate – cache invalidation by remaining mutators', () => {
+
+  test('splitEdge invalidates the cache (quad -> pentagon)', () => {
+    const struct = HalfedgeDS.fromPolygons(
+      new Float32Array([0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0]),
+      [[0, 1, 2, 3]],
+    );
+    const before = struct.tessellate();
+    expect(before).toHaveLength(2);
+
+    const he = struct.faces[0].halfedge;
+    const mid = new Vector3()
+      .addVectors(he.vertex.position, he.twin.vertex.position)
+      .multiplyScalar(0.5);
+    struct.splitEdge(he, mid);
+    expect(struct.faces[0].size).toBe(5);
+
+    const after = struct.tessellate();
+    expect(after).not.toBe(before);
+    expect(after).toHaveLength(3);
+  });
+
+  test('removeEdge (merge) invalidates the cache', () => {
+    const struct = HalfedgeDS.fromPolygons(
+      new Float32Array([0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0]),
+      [[0, 1, 2], [0, 2, 3]],
+    );
+    const before = struct.tessellate();
+    expect(struct.faces).toHaveLength(2);
+
+    const [f0, f1] = struct.faces;
+    const shared = [...f0.halfedge.nextLoop()].find(he => he.twin.face === f1);
+    expect(shared).toBeDefined();
+    if (shared) {
+      struct.removeEdge(shared, true);
+    }
+
+    expect(struct.faces).toHaveLength(1);
+    const after = struct.tessellate();
+    expect(after).not.toBe(before);
+    expect(after).toHaveLength(2); // merged quad -> 2 tris
+  });
+});

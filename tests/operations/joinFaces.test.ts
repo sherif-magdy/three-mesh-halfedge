@@ -108,3 +108,101 @@ describe('joinFaces', () => {
     expect(() => struct.joinFaces([f0, f0])).toThrow(/duplicate/);
   });
 });
+
+// ===========================================================================
+// Larger / cyclic patches and mixed face pairs
+// ===========================================================================
+
+/** 2x2 grid of coplanar unit quads (9 verts, 4 faces); centre vertex = id 4. */
+function build2x2Grid(): HalfedgeDS {
+  const positions = new Float32Array([
+    0, 0, 0, 1, 0, 0, 2, 0, 0,
+    0, 1, 0, 1, 1, 0, 2, 1, 0,
+    0, 2, 0, 1, 2, 0, 2, 2, 0,
+  ]);
+  return HalfedgeDS.fromPolygons(positions, [
+    [0, 1, 4, 3], [1, 2, 5, 4], [3, 4, 7, 6], [4, 5, 8, 7],
+  ]);
+}
+
+/** 1x3 strip of coplanar unit quads (8 verts, 3 faces). */
+function build3Strip(): HalfedgeDS {
+  const positions = new Float32Array([
+    0, 0, 0, 1, 0, 0, 2, 0, 0, 3, 0, 0,
+    0, 1, 0, 1, 1, 0, 2, 1, 0, 3, 1, 0,
+  ]);
+  return HalfedgeDS.fromPolygons(positions, [
+    [0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6],
+  ]);
+}
+
+describe('joinFaces – larger patches & mixed pairs', () => {
+
+  test('2x2 quad grid -> octagon, centre vertex left isolated', () => {
+    const struct = build2x2Grid();
+    expect(struct.faces).toHaveLength(4);
+
+    const merged = struct.joinFaces(struct.faces.slice());
+
+    expect(struct.faces).toHaveLength(1);
+    expect(merged.size).toBe(8);
+    // The centre vertex (1,1) was interior to the patch -> now isolated.
+    const isolated = struct.vertices.filter(v => v.isIsolated());
+    expect(isolated).toHaveLength(1);
+    validateHalfedgeConsistency(struct);
+  });
+
+  test('3-quad strip (non-cyclic) -> one rectangle (8 corners)', () => {
+    const struct = build3Strip();
+    const merged = struct.joinFaces(struct.faces.slice());
+    expect(struct.faces).toHaveLength(1);
+    expect(merged.size).toBe(8);
+    validateHalfedgeConsistency(struct);
+  });
+
+  test('two adjacent quads -> hexagon', () => {
+    const positions = new Float32Array([
+      0, 0, 0, 1, 0, 0, 2, 0, 0, 0, 1, 0, 1, 1, 0, 2, 1, 0,
+    ]);
+    const struct = HalfedgeDS.fromPolygons(positions, [[0, 1, 4, 3], [1, 2, 5, 4]]);
+    const [f0, f1] = struct.faces;
+    const merged = struct.joinFacesAcrossEdge(sharedHalfedge(f0, f1));
+    expect(struct.faces).toHaveLength(1);
+    expect(merged.size).toBe(6);
+  });
+
+  test('triangle + quad sharing an edge -> pentagon', () => {
+    const positions = new Float32Array([
+      0, 0, 0, 2, 0, 0, 1, 1, 0, // tri 0,1,2
+      0, -1, 0, 2, -1, 0,        // quad shares edge 0-1 (below)
+    ]);
+    const struct = HalfedgeDS.fromPolygons(positions, [[0, 1, 2], [1, 0, 3, 4]]);
+    const [f0, f1] = struct.faces;
+    const merged = struct.joinFacesAcrossEdge(sharedHalfedge(f0, f1));
+    expect(struct.faces).toHaveLength(1);
+    expect(merged.size).toBe(5);
+  });
+});
+
+describe('joinFaces – edge cases & integration', () => {
+
+  test('a single face is a no-op (returns it unchanged)', () => {
+    const struct = squareAsTwoTriangles();
+    const only = struct.faces[0];
+    const result = struct.joinFaces([only]);
+    expect(result).toBe(only);
+    expect(struct.faces).toHaveLength(2); // untouched
+  });
+
+  test('a face from another structure is rejected', () => {
+    const a = squareAsTwoTriangles();
+    const b = squareAsTwoTriangles();
+    expect(() => a.joinFaces([a.faces[0], b.faces[0]])).toThrow(/belong/);
+  });
+
+  test('merged n-gon tessellates to size-2 triangles', () => {
+    const struct = build3Strip();
+    struct.joinFaces(struct.faces.slice()); // -> rectangle, 8 corners
+    expect(struct.tessellate()).toHaveLength(8 - 2);
+  });
+});
