@@ -50,6 +50,27 @@ function uniqueRows(geo: BufferGeometry, attrs: string[]): Set<string> {
   return set;
 }
 
+/**
+ * Unique (position + attrs) rows over FACE-REFERENCED corners only. For an
+ * indexed geometry this skips stray unreferenced verts (e.g. three.js
+ * SphereGeometry emits an unreferenced seam vertex at each pole); for a
+ * non-indexed geometry every row is a corner, so it equals {@link uniqueRows}.
+ *
+ * This is the correct round-trip parity notion: a halfedge DS is built from
+ * faces, so only face-referenced per-corner data can round-trip.
+ */
+function uniqueReferencedRows(geo: BufferGeometry, attrs: string[]): Set<string> {
+  const idx = geo.getIndex();
+  if (!idx) {
+    return uniqueRows(geo, attrs);
+  }
+  const set = new Set<string>();
+  for (let i = 0; i < idx.count; i++) {
+    set.add(geometryRowKey(geo, idx.getX(i), attrs));
+  }
+  return set;
+}
+
 /** Distinct `attrName` value-keys emitted at a given position. */
 function attrValuesAtPosition(
     geo: BufferGeometry, attrName: string, x: number, y: number, z: number): Set<string> {
@@ -258,9 +279,14 @@ describe('attributes – large closed primitive parity', () => {
     expect(uniqueRows(result, attrs)).toEqual(uniqueRows(original, attrs));
   });
 
-  test('SphereGeometry poles keep many distinct uvs (high-valence weld)', () => {
-    // The poles are one position shared by every longitude strip, each with a
-    // distinct uv. Per-corner storage keeps (almost) all of them after the weld.
+  test('SphereGeometry normal+uv round-trip (full parity over referenced corners)', () => {
+    // three.js SphereGeometry emits a stray UNREFERENCED seam vertex at each
+    // pole (out-of-range uv 1.031250 / -0.031250, referenced by no triangle).
+    // setFromGeometry correctly ignores it — a halfedge DS is built from faces
+    // (Blender's BMesh works the same way: UVs live per-loop on referenced
+    // corners; stray verts are not topology). Parity over FACE-REFERENCED
+    // source corners — the authored per-corner data — is therefore exact,
+    // seam included.
     const original = new SphereGeometry(1, 16, 8);
     const attrs = ['normal', 'uv'];
 
@@ -268,23 +294,11 @@ describe('attributes – large closed primitive parity', () => {
     struct.setFromGeometry(original);
     const result = toGeometry(struct);
 
-    // Fidelity: every emitted (position, normal, uv) row exists in the source.
-    const sourceRows = uniqueRows(original, attrs);
-    const resultRows = uniqueRows(result, attrs);
-    for (const key of resultRows) {
-      expect(sourceRows.has(key)).toBe(true);
-    }
+    expect(uniqueRows(result, attrs)).toEqual(uniqueReferencedRows(original, attrs));
 
-    // North pole (one welded vertex) retains many distinct uvs.
+    // North pole (one welded vertex) keeps every referenced strip uv.
     const poleUvs = attrValuesAtPosition(result, 'uv', 0, 1, 0);
-    expect(poleUvs.size).toBeGreaterThanOrEqual(14);
-
-    // NOTE: full set parity is intentionally NOT asserted here. three.js places
-    // the uv seam AT the poles (col0/col16 are the same meridian with different
-    // uvs, including out-of-range values); position-welding collapses that one
-    // shared directed edge, dropping ~1 uv per pole. That is a welding
-    // limitation on degenerate seams, not a per-corner storage defect — true
-    // hard edges survive (see the cube-as-quads and UV-seam cases).
+    expect(poleUvs.size).toBe(16);
   });
 });
 
@@ -424,5 +438,35 @@ describe('attributes – coexisting same-itemSize layers', () => {
     const result = toGeometry(struct);
     expect(uniqueRows(result, ['normal', 'color']))
       .toEqual(uniqueRows(geo, ['normal', 'color']));
+  });
+});
+
+// ===========================================================================
+// I. Stray unreferenced source verts are dropped (no false "collapse")
+// ===========================================================================
+
+describe('attributes – stray unreferenced verts are dropped, not collapsed', () => {
+
+  test('an unreferenced source vert is not ingested; referenced data is exact', () => {
+    // Triangle (v0,v1,v2) plus a stray v3 referenced by no face. Its uv (9,9)
+    // is buffer data, not authored per-corner data — a halfedge DS (built from
+    // faces) correctly never ingests it. This is the SphereGeometry seam case
+    // in miniature: three.js emits an unreferenced pole vert whose out-of-range
+    // uv is NOT data loss, just a stray the DS ignores.
+    const positions = new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 5, 5]);
+    const uvs = new Float32Array([0, 0, 1, 0, 0, 1, 9, 9]); // v3 uv (9,9) stray
+    const geo = new BufferGeometry();
+    geo.setAttribute('position', new BufferAttribute(positions, 3));
+    geo.setAttribute('uv', new BufferAttribute(uvs, 2));
+    geo.setIndex([0, 1, 2]); // only v0,v1,v2 referenced
+
+    const struct = new HalfedgeDS();
+    struct.setFromGeometry(geo);
+    const result = toGeometry(struct);
+
+    // Referenced corners round-trip exactly; the stray v3 (uv 9,9) is gone.
+    expect(uniqueRows(result, ['uv'])).toEqual(uniqueReferencedRows(geo, ['uv']));
+    expect(result.getAttribute('position').count).toBe(3);
+    expect(result.hasAttribute('uv')).toBe(true);
   });
 });
