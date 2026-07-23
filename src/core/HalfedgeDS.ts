@@ -29,6 +29,7 @@ import { tessellate } from '../operations/tessellate';
 import { updateFaceNormal } from '../operations/updateFaceNormal';
 import { joinFaces, joinFacesAcrossEdge } from '../operations/joinFaces';
 import { dissolveVertex } from '../operations/dissolveVertex';
+import { limitedDissolve } from '../operations/limitedDissolve';
 import { clearArray } from '../utils/array';
 
 
@@ -426,6 +427,17 @@ export class HalfedgeDS {
   dissolveVertex(vertex: Vertex): void {
     this.invalidateTessellation();
     return dissolveVertex(this, vertex);
+  }
+
+  /**
+   * Dissolves edges whose adjacent faces meet within `angleLimit` radians
+   * (`bm_edge_calc_dissolve_error`): the cheapest coplanar-ish edges merge
+   * first via {@link joinFacesAcrossEdge}, recomputing the survivor's normal and
+   * re-costing its neighbours. Delimit: NORMAL only.
+   */
+  limitedDissolve(angleLimit: number): void {
+    this.invalidateTessellation();
+    limitedDissolve(this, angleLimit);
   }
 
 }

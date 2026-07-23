@@ -8,3 +8,4 @@ export {tessellate} from './operations/tessellate';
 export {updateFaceNormal} from './operations/updateFaceNormal';
 export {joinFaces, joinFacesAcrossEdge} from './operations/joinFaces';
 export {dissolveVertex} from './operations/dissolveVertex';
+export {limitedDissolve} from './operations/limitedDissolve';
