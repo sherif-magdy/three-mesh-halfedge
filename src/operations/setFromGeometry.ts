@@ -1,17 +1,3 @@
-/*
- * Author: Axel Antoine
- * mail: ax.antoine@gmail.com
- * website: http://axantoine.com
- * Created on Fri Nov 18 2022
- *
- * Loki, Inria project-team with Université de Lille
- * within the Joint Research Unit UMR 9189 
- * CNRS - Centrale Lille - Université de Lille, CRIStAL
- * https://loki.lille.inria.fr
- *
- * Licence: Licence.md
- */
-
 import { BufferAttribute, BufferGeometry, InterleavedBufferAttribute, Vector3 } from "three";
 import { Halfedge } from "../core/Halfedge";
 import { HalfedgeDS } from "../core/HalfedgeDS";
@@ -27,24 +13,18 @@ export function setFromGeometry(
 
   struct.clear();
 
-  // Check position and normal attributes
   if (!geometry.hasAttribute("position")) {
     throw new Error("BufferGeometry does not have a position BufferAttribute.");
   }
 
   const positions = geometry.getAttribute('position');
 
-  // Get the merged vertices Array
   const indexVertexArray = computeVerticesIndexArray(positions, tolerance);
 
-  // If the geometry is not indexed, we get the indexes of faces vertices from
-  // the position buffer attribute directly in group of 3
   let nbOfFaces = positions.count/3;
   let getVertexIndex = function(bufferIndex: number) {
     return indexVertexArray[bufferIndex];
   }
-  // Otherwise, if the geometry is indexed, we get the index of faces vertices
-  // from the index buffer in group of 3
   const indexBuffer = geometry.getIndex();
   if (indexBuffer) {
     nbOfFaces = indexBuffer.count/3;
@@ -67,8 +47,8 @@ export function setFromGeometry(
     };
   }
 
-  // Save halfedges in a map where with a hash <src-vertex-id>
-  // their hash is index1-index2, so that it is easier to find the twin
+  // Index halfedges by an "index1-index2" key so each twin pair is found by
+  // swapping the key.
   const halfedgeMap = new Map<string, Halfedge>();
   const vertexMap = new Map<number, Vertex>();
 
@@ -81,7 +61,6 @@ export function setFromGeometry(
 
     for (let i=0; i<3; i++) {
 
-      // Get the source vertex v1
       const i1 = getVertexIndex(faceIndex*3 + i);
       let v1 = vertexMap.get(i1);
       if (!v1) {
@@ -90,7 +69,6 @@ export function setFromGeometry(
         vertexMap.set(i1, v1);
       }
 
-      // Get the destitation vertex
       const i2 = getVertexIndex(faceIndex*3 + (i+1)%3);
       let v2 = vertexMap.get(i2);
       if (!v2) {
@@ -99,7 +77,6 @@ export function setFromGeometry(
         vertexMap.set(i2, v2);
       }
 
-      // Get the halfedge from v1 to v2
       const hash1 = i1+'-'+i2;
       let h1 = halfedgeMap.get(hash1);
 
@@ -177,14 +154,7 @@ function ingestGeometryAttributes(
 
 
 
-/**
- * Returns an array where each index points to its new index in the buffer
- * attribute
- * 
- * @param positions Vertices positions buffer
- * @param tolerance Distance tolerance of the vertices to merge
- * @returns 
- */
+/** Returns a lookup mapping each source position index to its merged (welded) vertex index. */
 export function computeVerticesIndexArray(
     positions: BufferAttribute | InterleavedBufferAttribute,
     tolerance = 1e-10){
@@ -202,8 +172,6 @@ export function computeVerticesIndexArray(
       hash += `${Math.round(positions.array[i*3+j] * shiftMultiplier)}`;
     }
 
-    // If hash already exist, then set the buffer index to the existing vertex,
-    // otherwise, create it
     let vertexIndex = hashMap.get(hash);
     if (vertexIndex === undefined) {
       vertexIndex = i;

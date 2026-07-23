@@ -1,15 +1,3 @@
-// Author: Axel Antoine
-// mail: ax.antoine@gmail.com
-// website: https://axantoine.com
-// 17/03/2021
-
-// Loki, Inria project-team with Université de Lille
-// within the Joint Research Unit UMR 9189 CNRS-Centrale
-// Lille-Université de Lille, CRIStAL.
-// https://loki.lille.inria.fr
-
-// LICENCE: Licence.md 
-
 import { Vector3, Triangle } from 'three';
 import { Vertex } from './Vertex';
 import { Halfedge } from './Halfedge';
@@ -58,12 +46,7 @@ export class Face {
     _triangle().getMidpoint(target);
   }
 
-  /**
-   * Returns wether the face facing the given position
-   *
-   * @param position  The position
-   * @return `true` if face is front facing, `false` otherwise.
-   */
+  /** Whether the face is front-facing relative to `position`. */
   isFront(position: Vector3) {
     this.getNormal(_normal());
     return _viewVector()
@@ -72,12 +55,7 @@ export class Face {
       .dot(_normal()) >= 0;
   }
 
-  /**
-   * Returns the face halfedge containing the given position.
-   * @param position Target position
-   * @param tolerance Tolerance
-   * @returns `HalfEdge` if found, `null` otherwise
-   */
+  /** The halfedge on this face containing `position`, or null. */
   halfedgeFromPosition(position: Vector3, tolerance = 1e-10): Halfedge | null {
 
     for (const he of this.halfedge.nextLoop()) {
@@ -88,17 +66,10 @@ export class Face {
     return null;
   }
 
-  /**
-   * Returns the face vertex that matches the given position within the tolerance
-   * @param position 
-   * @param tolerance 
-   * @returns 
-   */
+  /** The vertex on this face matching `position` within tolerance, or null. */
   vertexFromPosition(position: Vector3, tolerance = 1e-10): Vertex | null {
 
     for (const he of this.halfedge.nextLoop()) {
-      // Check if position is close enough to the vertex position within the
-      // provided tolerance
       _vec().subVectors(he.vertex.position, position);
 
       if (_vec().length() < tolerance) {
@@ -108,14 +79,9 @@ export class Face {
     return null;
   }
 
-  /**
-   * Returns the face halfedge starting from the given vertex
-
-   * @param vertex 
-   * @returns 
-   */
+  /** The halfedge on this face starting from `vertex`, or null. */
   halfedgeFromVertex(vertex: Vertex) {
-    
+
     for (const he of this.halfedge.nextLoop()) {
       if (he.vertex === vertex) {
         return he;

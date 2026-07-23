@@ -1,17 +1,3 @@
-/*
- * Author: Axel Antoine
- * mail: ax.antoine@gmail.com
- * website: http://axantoine.com
- * Created on Thu Nov 03 2022
- *
- * Loki, Inria project-team with Université de Lille
- * within the Joint Research Unit UMR 9189 
- * CNRS - Centrale Lille - Université de Lille, CRIStAL
- * https://loki.lille.inria.fr
- *
- * Licence: Licence.md
- */
-
 import { Face } from "../core/Face";
 import { Halfedge } from "../core/Halfedge";
 import { HalfedgeDS } from "../core/HalfedgeDS";
@@ -38,7 +24,6 @@ export function cutFace(
     throw new Error('Vertices v2 does not belong to face nor is free');
   }
 
-  // Check if v1 is already connected to v2 in the face
   if ((out1 && out1.next.vertex === v2) || (out2 && out2.next.vertex === v1)) {
     throw new Error("Vertices v1 and v2 are already connected");
   }
@@ -76,7 +61,6 @@ export function cutFace(
    *            
    */
 
-  // Create new halfedges
   const h1 = new Halfedge(v1);
   const h2 = new Halfedge(v2);
   h1.face = face;
@@ -88,10 +72,8 @@ export function cutFace(
   h2.next = h1;
   h2.prev = h1;
 
-  // If v1 is not part of face, get any outgoing halfedge
   out1 = out1 ?? v1.freeHalfedgesOutLoop().next().value;
 
-  // Update refs around v1 if not isolated
   if (out1) {
     const in1 = out1.prev;
     h1.prev = in1;
@@ -103,10 +85,8 @@ export function cutFace(
     v1.halfedge = h1;
   }
 
-  // If v2 is not part of face, get any outgoing halfedge
   out2 = out2 ?? v2.freeHalfedgesOutLoop().next().value;
 
-  // Update refs around v2 if not isolated
   if (out2) {
 
     const in2 = out2.prev;
@@ -139,9 +119,7 @@ export function cutFace(
   }
 
   if (!found) {
-    // h2 is on a different loop than h1
-
-    // Update initial face halfedge reference in case it changed loop 
+    // Update initial face halfedge reference in case it changed loop
     face.halfedge = h1;
 
     let newFace = null;

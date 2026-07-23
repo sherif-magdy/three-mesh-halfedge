@@ -1,17 +1,3 @@
-/*
- * Author: Axel Antoine
- * mail: ax.antoine@gmail.com
- * website: http://axantoine.com
- * Created on Thu Nov 03 2022
- *
- * Loki, Inria project-team with Université de Lille
- * within the Joint Research Unit UMR 9189 
- * CNRS - Centrale Lille - Université de Lille, CRIStAL
- * https://loki.lille.inria.fr
- *
- * Licence: Licence.md
- */
-
 import { Halfedge } from "../core/Halfedge";
 import { HalfedgeDS } from "../core/HalfedgeDS";
 import { removeFace } from "./removeFace";
@@ -41,12 +27,11 @@ export function removeEdge(
   const twin = halfedge.twin;
 
   if (mergeFaces && halfedge.face && twin.face) {
-    // Keep only one face in both faces for halfedge and twin exist, and update
-    // ref
+    // Merge: keep halfedge.face, drop twin.face, and repoint the survivor's
+    // entry halfedge before halfedge itself is unlinked.
     removeFace(struct, twin.face);
     halfedge.face.halfedge = halfedge.prev;
   } else {
-    // Remove both faces
     if (halfedge.face) {
       removeFace(struct, halfedge.face);
     }
@@ -56,7 +41,6 @@ export function removeEdge(
     }
   }
 
-  // Update topology around v1
   const v1 = halfedge.vertex;
   if (twin.next === halfedge) {
     // v1 is now isolated
@@ -67,7 +51,6 @@ export function removeEdge(
     twin.next.prev = halfedge.prev;
   }
 
-  // Update topology around v2
   const v2 = twin.vertex;
   if (halfedge.next === twin) {
     // v2 is now isolated
@@ -78,7 +61,6 @@ export function removeEdge(
     twin.prev.next = halfedge.next
   }
 
-  // Remove halfedges from struct
   removeFromArray(struct.halfedges, halfedge);
   removeFromArray(struct.halfedges, twin);
 

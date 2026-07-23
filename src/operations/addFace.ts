@@ -1,17 +1,3 @@
-/*
- * Author: Axel Antoine
- * mail: ax.antoine@gmail.com
- * website: http://axantoine.com
- * Created on Fri Nov 04 2022
- *
- * Loki, Inria project-team with Université de Lille
- * within the Joint Research Unit UMR 9189 
- * CNRS - Centrale Lille - Université de Lille, CRIStAL
- * https://loki.lille.inria.fr
- *
- * Licence: Licence.md
- */
-
 import { Face } from "../core/Face";
 import { Halfedge } from "../core/Halfedge";
 import { HalfedgeDS } from "../core/HalfedgeDS";
@@ -23,7 +9,6 @@ export function addFace(struct: HalfedgeDS, halfedges: Halfedge[]) {
     throw new Error("At least 3 halfedges required to build a face.");
   }
 
-  // Make some checks before changing topology
   for (let i=0; i<size; i++) {
 
     const curr = halfedges[i];
@@ -38,7 +23,6 @@ export function addFace(struct: HalfedgeDS, halfedges: Halfedge[]) {
     }
   }
   
-  // Add the face  
   for (let i = 0; i<size; i++) {
 
     const curr = halfedges[i];
@@ -58,21 +42,11 @@ export function addFace(struct: HalfedgeDS, halfedges: Halfedge[]) {
   return face;
 }
 
-/**
- * 
- * 
- * @see https://kaba.hilvi.org/homepage/blog/halfedge/halfedge.htm
- * 
- * @param 
- * @param out 
- * @returns 
- */
 function makeHalfedgesAdjacent(
     halfIn: Halfedge,
     halfOut: Halfedge): boolean {
 
   if (halfIn.next === halfOut) {
-    // Adjacency is alrady correct
     return true;
   }
 

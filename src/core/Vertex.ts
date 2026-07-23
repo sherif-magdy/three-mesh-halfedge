@@ -1,15 +1,3 @@
-// Author: Axel Antoine
-// mail: ax.antoine@gmail.com
-// website: https://axantoine.com
-// 17/03/2021
-
-// Loki, Inria project-team with Université de Lille
-// within the Joint Research Unit UMR 9189 CNRS-Centrale
-// Lille-Université de Lille, CRIStAL.
-// https://loki.lille.inria.fr
-
-// LICENCE: Licence.md 
-
 import { Vector3 } from 'three';
 import type { Face } from './Face';
 import { Halfedge } from './Halfedge';
@@ -19,10 +7,9 @@ const _u = lazy(() => new Vector3());
 let _idCount = 0;
 
 export class Vertex {
-  /** Vertex position */
   readonly position: Vector3 = new Vector3();
 
-  /** Reference to one halfedge starting from the vertex */
+  /** Reference to one outgoing halfedge starting from the vertex. */
   halfedge: Halfedge | null = null;
 
   id: number;
@@ -32,18 +19,12 @@ export class Vertex {
     _idCount++;
   }
 
-  /**
-   * Resets the global vertex ID counter to zero.
-   * Called automatically by `HalfedgeDS.clear()`.
-   */
+  /** Resets the global vertex ID counter. Called automatically by `HalfedgeDS.clear()`. */
   static resetIdCounter() {
     _idCount = 0;
   }
 
-  /**
-   * Returns a generator of free halfedges starting from this vertex.
-   * @param start The halfedge to start, default is vertex halfedge
-   */
+  /** Free outgoing halfedges starting from this vertex. */
   *freeHalfedgesOutLoop(start = this.halfedge) {
     for (const halfedge of this.loopCW(start)) {
       if (halfedge.isFree()) {
@@ -53,10 +34,7 @@ export class Vertex {
     return null;
   }
 
-  /**
-   * Returns a generator of free halfedges arriving to this vertex.
-   * @param start The halfedge to start, default is vertex halfedge
-  */
+  /** Free halfedges arriving at this vertex. */
   *freeHalfedgesInLoop(start = this.halfedge) {
     for (const halfedge of this.loopCW(start)) {
       if (halfedge.twin.isFree()) {
@@ -66,10 +44,7 @@ export class Vertex {
     return null;
   }
 
-  /**
-   * Returns a generator of boundary halfedges starting from this vertex.
-   * @param start The halfedge to start, default is vertex halfedge
-   */
+  /** Boundary halfedges starting from this vertex. */
   *boundaryHalfedgesOutLoop(start = this.halfedge) {
     for (const halfedge of this.loopCW(start)) {
       if (halfedge.isBoundary()) {
@@ -78,11 +53,8 @@ export class Vertex {
     }
     return null;
   }
-  
-  /**
-   * Returns a generator of boundary halfedges arriving to this vertex.
-   * @param start The halfedge to start, default is vertex halfedge
-  */
+
+  /** Boundary halfedges arriving at this vertex. */
   *boundaryHalfedgesInLoop(start = this.halfedge) {
     for (const halfedge of this.loopCW(start)) {
       if (halfedge.twin.isBoundary()) {
@@ -92,14 +64,7 @@ export class Vertex {
     return null;
   }
 
-  /**
-   * Returns whether the vertex is free, i.e. on of its ongoing halfedge has no
-   * face.
-   * 
-   * @ref https://kaba.hilvi.org/homepage/blog/halfedge/halfedge.htm
-   * 
-   * @returns `true` if free, `false` otherwise
-   */
+  /** Whether the vertex is free (one of its outgoing halfedges has no face). */
   isFree() {
     if (this.isIsolated()) {
       return true;
@@ -126,23 +91,12 @@ export class Vertex {
     return faces;
   }
 
-  /**
-   * Checkes whether the vertex matches the given position
-   *
-   * @param      {Vector3}  position           The position
-   * @param      {number}   [tolerance=1e-10]  The tolerance
-   * @return     {boolean}
-   */
   matchesPosition(position: Vector3, tolerance = 1e-10): boolean {
     _u().subVectors(position, this.position);
     return _u().length() < tolerance;
   }
 
-  /**
-   * Returns the halfedge going from *this* vertex to *other* vertex if any.
-   * @param other The other vertex
-   * @returns `HalfEdge` if found, `null` otherwise.
-   */
+  /** The outgoing halfedge from this vertex to `other`, or null. */
   getHalfedgeToVertex(other: Vertex): Halfedge | null {
     for (const halfEdge of this.loopCW()) {
       if (halfEdge.twin.vertex === other) {
@@ -156,10 +110,7 @@ export class Vertex {
     return this.getHalfedgeToVertex(other) !== null;
   }
 
-  /**
-   * Returns a generator of halfedges starting from this vertex in CW order.
-   * @param start The halfedge to start looping, default is vertex halfedge
-   */
+  /** Halfedges starting from this vertex in clockwise order. */
   *loopCW(start = this.halfedge) {
     if (start && start.vertex === this) {
       let curr: Halfedge = start;
@@ -171,10 +122,7 @@ export class Vertex {
     return null;
   }
 
-  /**
-   * Returns a generator of halfedges starting from this vertex in CCW order.
-   * @param start The halfedge to start, default is vertex halfedge
-   */
+  /** Halfedges starting from this vertex in counter-clockwise order. */
   *loopCCW(start = this.halfedge) {
     if (start && start.vertex === this) {
       let curr: Halfedge = start;
@@ -186,5 +134,3 @@ export class Vertex {
     return null;
   }
 }
-
-

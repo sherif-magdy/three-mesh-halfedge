@@ -60,13 +60,9 @@ export function toGeometry(struct: HalfedgeDS): BufferGeometry {
     positions.push(vertex.position.x, vertex.position.y, vertex.position.z);
   }
 
-  // Build the index buffer.
-  // For each face, walk its halfedge loop to collect vertices.
-  // Triangulate n-gons using a fan from the first vertex.
   const indices: number[] = [];
 
   for (const face of struct.faces) {
-    // Collect all vertices of this face in loop order
     const faceVertices: Vertex[] = [];
 
     for (const he of face.halfedge.nextLoop()) {

@@ -1,15 +1,3 @@
-// Author: Axel Antoine
-// mail: ax.antoine@gmail.com
-// website: https://axantoine.com
-// 23/02/2021
-
-// Loki, Inria project-team with Université de Lille
-// within the Joint Research Unit UMR 9189 CNRS-Centrale
-// Lille-Université de Lille, CRIStAL.
-// https://loki.lille.inria.fr
-
-// LICENCE: Licence.md 
-
 import { BufferGeometry, Vector3 } from 'three';
 import { Face } from './Face';
 import { Vertex } from './Vertex';
@@ -40,11 +28,8 @@ import { clearArray } from '../utils/array';
  */
 export class HalfedgeDS {
 
-  /** @readonly Faces */
   readonly faces = new Array<Face>();
-  /** @readonly Vertices */
   readonly vertices = new Array<Vertex>();
-  /** @readonly Halfedges */
   readonly halfedges = new Array<Halfedge>();
 
   // Lazily-computed triangle cache for tessellate(). Invalidated by every
@@ -269,12 +254,8 @@ export class HalfedgeDS {
   }
 
   /**
-   * Returns an array of all the halfedge loops in the structure.
-   * 
-   * *Note: Actually returns an array of halfedges from which loop generator
-   * can be called*
-   * 
-   * @returns 
+   * One representative halfedge per face loop in the structure.
+   * Call `nextLoop()` on each entry to walk that loop.
    */
   loops() {
     const loops = new Array<Halfedge>();
@@ -293,9 +274,6 @@ export class HalfedgeDS {
     return loops;
   }
 
-  /**
-   * Clear the structure data
-   */
   clear() {
     this.invalidateTessellation();
     clearArray(this.faces);
@@ -432,7 +410,6 @@ export class HalfedgeDS {
    * @param position New vertex position
    * @param checkDuplicates Enable/disable existing vertex matching, default false
    * @param tolerance Tolerance used for vertices position comparison
-   * @returns 
    */
   addVertex(
       position: Vector3,
@@ -457,64 +434,47 @@ export class HalfedgeDS {
     return addEdge(this, v1, v2, allowParallels)
   }
 
-  /**
-   * Adds a face to an existing halfedge loop
-   * @param halfedge 
-   * @returns 
-   */
+  /** Assigns a face to an existing halfedge loop. */
   addFace(halfedges: Halfedge[]) {
     this.invalidateTessellation();
     return addFace(this, halfedges);
   }
 
-  /**
-   * Removes a vertex from the structure
-   * @param vertex Vertex to remove
-   * @param mergeFaces If true, merges connected faces if any, otherwise removes them. Default true
-   */
+  /** Removes `vertex`. If `mergeFaces` (default), merges its incident faces instead of removing them. */
   removeVertex(vertex: Vertex, mergeFaces = true) {
     this.invalidateTessellation();
     return removeVertex(this, vertex, mergeFaces);
   }
 
-  /**
-   * Removes an edge from the structrure
-   * @param halfedge Halfedge to remove
-   * @param mergeFaces If true, merges connected faces if any, otherwise removes them. Default true
-   */
+  /** Removes the `halfedge` pair. If `mergeFaces` (default), merges the two incident faces instead of removing them. */
   removeEdge(halfedge: Halfedge, mergeFaces = true) {
     this.invalidateTessellation();
     return removeEdge(this, halfedge, mergeFaces);
   }
 
-  /**
-   * Removes a face from the structure.
-   * @param face Face to remove
-   */
   removeFace(face: Face) {
     this.invalidateTessellation();
     return removeFace(this, face);
   }
 
-  /**ts
-   * Cuts the `face` between the vertices `v1` and `v2`. 
+  /**
+   * Cuts the `face` between the vertices `v1` and `v2`.
    * v1 and v2 must either be vertices of the face or isolated vertices.
-   * 
-   * To test if a new face is created, simply do
-   * ```
+   *
+   * To test if a new face is created:
+   * ```ts
    *    const halfedge = struct.cutFace(face, v1, v2, true);
    *    if (halfedge.face !== halfedge.twin.face) {
-   *      // Halfedge are on different faces / loops
+   *      // Halfedges are on different faces / loops
    *      const existingFace = halfedge.face;
    *      const newFace = halfedge.twin.face;
    *    }
-   * ```   
-   * 
-   * 
+   * ```
+   *
    * @param face Face to cut
    * @param v1 1st vertex
    * @param v2 2nd vertex
-   * @param createNewFace wether to create a new face or not when cutting
+   * @param createNewFace whether to create a new face when cutting
    * @returns the cutting halfedge
    */
   cutFace(face: Face, v1: Vertex, v2: Vertex, createNewFace = true) {
@@ -522,12 +482,7 @@ export class HalfedgeDS {
     return cutFace(this, face, v1, v2, createNewFace);
   }
 
-  /**
-   * Splits the halfedge at position and returns the new vertex
-   * @param halfEdge The HalfEdge to be splitted
-   * @param position Position of the split vertex
-   * @returns the new created vertex
-   */
+  /** Splits `halfedge` at `position`, returning the newly created vertex. */
   splitEdge(halfedge: Halfedge, position: Vector3, tolerance = 1e-10) {
     this.invalidateTessellation();
     return splitEdge(this, halfedge, position, tolerance);

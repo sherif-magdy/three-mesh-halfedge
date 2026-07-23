@@ -1,17 +1,3 @@
-/*
- * Author: Axel Antoine
- * mail: ax.antoine@gmail.com
- * website: http://axantoine.com
- * Created on Tue Oct 25 2022
- *
- * Loki, Inria project-team with Université de Lille
- * within the Joint Research Unit UMR 9189 
- * CNRS - Centrale Lille - Université de Lille, CRIStAL
- * https://loki.lille.inria.fr
- *
- * Licence: Licence.md
- */
-
 import { Vector3 } from "three";
 import { Halfedge } from "../core/Halfedge";
 import { HalfedgeDS } from "../core/HalfedgeDS";
@@ -36,7 +22,6 @@ export function splitEdge(
   const A = halfedge.vertex;
   const B = twin.vertex;
 
-  // No need to split if position matches A or B
   if (A.matchesPosition(position, tolerance)) {
     return A;
   }
@@ -47,18 +32,15 @@ export function splitEdge(
   const newVertex = new Vertex();
   newVertex.position.copy(position);
 
-  // Create the new halfegdes
   const newHalfedge = new Halfedge(newVertex);
   const newTwin = new Halfedge(B);
   newHalfedge.twin = newTwin;
   newTwin.twin = newHalfedge;
 
-  // Update vertices halfedge refs
   A.halfedge = halfedge;
   newVertex.halfedge = newHalfedge;
   B.halfedge = newTwin;
 
-  // Copy the face refs
   newHalfedge.face = halfedge.face;
   newTwin.face = twin.face;
 
@@ -87,7 +69,6 @@ export function splitEdge(
   prevTwin.next = newTwin;
   twin.prev = newTwin;
 
-  // Update structure
   struct.vertices.push(newVertex);
   struct.halfedges.push(newHalfedge);
   struct.halfedges.push(newTwin);

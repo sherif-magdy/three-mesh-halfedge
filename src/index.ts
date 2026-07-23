@@ -1,3 +1,5 @@
+// Based on three-mesh-halfedge by Axel Antoine (MIT).
+
 export {HalfedgeDS} from './core/HalfedgeDS';
 export {Face} from './core/Face';
 export {Vertex} from './core/Vertex';

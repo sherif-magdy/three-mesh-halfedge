@@ -1,17 +1,3 @@
-/*
- * Author: Axel Antoine
- * mail: ax.antoine@gmail.com
- * website: http://axantoine.com
- * Created on Tue Oct 25 2022
- *
- * Loki, Inria project-team with Université de Lille
- * within the Joint Research Unit UMR 9189 
- * CNRS - Centrale Lille - Université de Lille, CRIStAL
- * https://loki.lille.inria.fr
- *
- * Licence: Licence.md
- */
-
 import { Halfedge } from "../core/Halfedge";
 import { HalfedgeDS } from "../core/HalfedgeDS";
 import { Vertex } from "../core/Vertex";
@@ -27,7 +13,6 @@ export function addEdge(
   }
 
   if (!allowParallels) {
-    // Check if v1 and v2 are already connected
     const currentHalfEdge = v1.getHalfedgeToVertex(v2);
     if (currentHalfEdge) {
       return currentHalfEdge;
@@ -38,8 +23,8 @@ export function addEdge(
     throw new Error('Vertices v1 and v2 are not free');
   } 
 
-  // Create new halfedges, by default twin halfedges are connected together
-  // as prev/next in case vertices are isolated
+  // Twin pair defaults to prev/next of each other (a 2-cycle) so isolated
+  // vertices still form a valid loop; non-isolated cases rewire below.
   const h1 = new Halfedge(v1);
   const h2 = new Halfedge(v2);
   h1.twin = h2;
@@ -65,7 +50,6 @@ export function addEdge(
    */
 
 
-  // Update refs around v1 if not isolated
   const in1 = v1.freeHalfedgesInLoop().next().value;
   if (in1) {
     const out1 = in1.next;
@@ -78,7 +62,6 @@ export function addEdge(
     v1.halfedge = h1;
   }
 
-  // Update refs around v2 if not isolated
   const in2 = v2.freeHalfedgesInLoop().next().value;
   if (in2) {
 
