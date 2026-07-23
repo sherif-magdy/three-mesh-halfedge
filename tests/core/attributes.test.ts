@@ -19,7 +19,10 @@ import { toGeometry } from '../../src/operations/toGeometry';
 
 /** Round to 6 dp so near-identical floats compare equal (parity, not bytes). */
 function r(n: number): string {
-  return n.toFixed(6);
+  // Normalize any value that rounds to zero (kills -0 and tiny ±eps from float
+  // ops) so numerically-equal rows compare equal.
+  const v = n.toFixed(6);
+  return parseFloat(v) === 0 ? '0.000000' : v;
 }
 
 /** Unique (position + attrs) row key for row `i` of a geometry. */
