@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.4.0](https://github.com/sherif-magdy/three-mesh-halfedge/compare/v2.3.0...v2.4.0) (2026-07-23)
+
+
+### Features
+
+* **attributes:** carry per-corner attrs through topology edit ops ([bc3ad8c](https://github.com/sherif-magdy/three-mesh-halfedge/commit/bc3ad8c45bb05d03f6ac3881256fd365de6a353e))
+* **core:** add n-gon tessellation (ear-clip) with mutation dirty-flag ([eaf7415](https://github.com/sherif-magdy/three-mesh-halfedge/commit/eaf74155ba2e7e7cd69ce03d5571fa37200290d2))
+* **core:** add per-corner attribute layers (storage, ingest, clone/copy) ([5524f7c](https://github.com/sherif-magdy/three-mesh-halfedge/commit/5524f7cf2da87a665e695c1365be0be9356054d9))
+* **operations:** add dissolve primitives (joinFaces/joinFacesAcrossEdge/dissolveVertex) ([5b901b6](https://github.com/sherif-magdy/three-mesh-halfedge/commit/5b901b60fe30a79159a59285be7509ec1a9acf94))
+* **operations:** add limited dissolve by face-normal angle ([16a5f6f](https://github.com/sherif-magdy/three-mesh-halfedge/commit/16a5f6fc0e8e8ce66ce2d98e776bd63cb41158cc))
+* **operations:** emit per-corner attributes in toGeometry ([8c1c2e4](https://github.com/sherif-magdy/three-mesh-halfedge/commit/8c1c2e4e5521b008f5a708d336011a2ae9875bca))
+
+
+### Bug Fixes
+
+* **operations:** dissolve self-sided spikes in limitedDissolve ([ec01183](https://github.com/sherif-magdy/three-mesh-halfedge/commit/ec011832f23469f6eef3dffbea7228d2a03d988c))
+
 ## [Unreleased](https://github.com/sherif-magdy/three-mesh-halfedge/compare/v2.3.0...HEAD)
 
 
