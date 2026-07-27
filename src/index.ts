@@ -9,6 +9,7 @@ export type {AttributeLayerInput} from './core/AttributeLayer';
 export {clearArray, removeFromArray} from './utils/array';
 export {toGeometry} from './operations/toGeometry';
 export {tessellate} from './operations/tessellate';
+export type {FromPolygonsOptions} from './operations/setFromPolygons';
 export {updateFaceNormal} from './operations/updateFaceNormal';
 export {joinFaces, joinFacesAcrossEdge} from './operations/joinFaces';
 export {dissolveVertex} from './operations/dissolveVertex';

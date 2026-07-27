@@ -9,6 +9,30 @@ import { lazy } from "../utils/lazy";
 const pos_ = lazy(() => new Vector3());
 
 /**
+ * Options for the n-gon ingest ({@link setFromPolygons} /
+ * {@link HalfedgeDS.fromPolygons}). Accepted as an options bag in place of the
+ * positional `tolerance` / `layers` arguments.
+ */
+export interface FromPolygonsOptions {
+  /** Vertex-merge tolerance (default 1e-10). Ignored when `weld` is false. */
+  tolerance?: number;
+  /**
+   * Optional per-corner attribute layers (uv/normal/tangent, arbitrary
+   * itemSize), aligned to the run-length corner order of the face table.
+   */
+  layers?: Record<string, AttributeLayerInput>;
+  /**
+   * When true (default), coincident corners within `tolerance` merge to one
+   * vertex — identical to {@link setFromGeometry}. When false, position dedup
+   * is skipped entirely: every distinct corner index becomes its own vertex
+   * even if several share an identical position (a "pinch" — disjoint manifold
+   * fans meeting at one geometric point). The caller must guarantee that shared
+   * corners already use identical indices.
+   */
+  weld?: boolean;
+}
+
+/**
  * Rebuilds a {@link HalfedgeDS} in place from an n-gon face table.
  *
  * This is the n-gon-native counterpart of {@link setFromGeometry}: every
@@ -38,11 +62,16 @@ const pos_ = lazy(() => new Vector3());
  *                     Length = faceCount + 1; `faceOffsets[0] === 0`; strictly
  *                     increasing.
  * @param cornerVerts  Per-corner vertex index into `positions`.
- * @param tolerance    Vertex-merge tolerance (default 1e-10).
+ * @param tolerance    Vertex-merge tolerance (default 1e-10). Ignored when
+ *                     `weld` is false.
  * @param layers       Optional per-corner attribute layers (uv/normal/tangent,
  *                     arbitrary itemSize), aligned to the run-length corner
  *                     order of `cornerVerts`. Each layer's `data.length` must
  *                     equal `cornerVerts.length * itemSize`.
+ * @param weld         When true (default), coincident corners within `tolerance`
+ *                     merge to one vertex. When false, position dedup is skipped
+ *                     entirely — every distinct corner index is its own vertex
+ *                     even at an identical position (a "pinch").
  */
 export function setFromPolygons(
     struct: HalfedgeDS,
@@ -50,7 +79,8 @@ export function setFromPolygons(
     faceOffsets: number[],
     cornerVerts: number[],
     tolerance = 1e-10,
-    layers?: Record<string, AttributeLayerInput>) {
+    layers?: Record<string, AttributeLayerInput>,
+    weld = true) {
 
   // Validate before clearing so a malformed call never wipes an existing DS.
   validatePolygonMesh(positions, faceOffsets, cornerVerts);
@@ -63,7 +93,13 @@ export function setFromPolygons(
     ? positions
     : new Float32Array(positions);
   const positionAttribute = new BufferAttribute(posArray, 3);
-  const dedupIndex = computeVerticesIndexArray(positionAttribute, tolerance);
+  // Position dedup is skipped entirely when weld === false: every distinct
+  // corner index becomes its own vertex even if several share an identical
+  // position (a pinch). `null` makes the per-corner resolution below use the
+  // raw corner index directly — the identity dedup map.
+  const dedupIndex = weld
+    ? computeVerticesIndexArray(positionAttribute, tolerance)
+    : null;
 
   // Deduplicated position index -> Vertex
   const vertexMap = new Map<number, Vertex>();
@@ -90,8 +126,10 @@ export function setFromPolygons(
       const cornerA = cornerVerts[start + i];
       const cornerB = cornerVerts[start + (i + 1) % n];
 
-      const iA = dedupIndex[cornerA];
-      const iB = dedupIndex[cornerB];
+      // With weld === false, dedupIndex is null and each corner index maps to
+      // itself — no position comparison at all.
+      const iA = dedupIndex ? dedupIndex[cornerA] : cornerA;
+      const iB = dedupIndex ? dedupIndex[cornerB] : cornerB;
 
       let v1 = vertexMap.get(iA);
       if (!v1) {
@@ -132,6 +170,36 @@ export function setFromPolygons(
 
   // halfedge -> array index, powering the per-corner read API.
   struct.rebuildHalfedgeIndex();
+}
+
+/**
+ * Normalizes the `tolerance` / `layers` / options-bag argument shapes accepted
+ * by the public n-gon ingest methods into one `{tolerance, layers, weld}`
+ * triple. A plain number is read as `tolerance` (the existing positional call);
+ * an object is the {@link FromPolygonsOptions} bag. `layers` is never the
+ * discriminating argument, so the two shapes are unambiguous.
+ */
+export function resolvePolygonOptions(
+    toleranceOrOptions: number | FromPolygonsOptions | undefined,
+    layers: Record<string, AttributeLayerInput> | undefined,
+): {
+  tolerance: number;
+  layers: Record<string, AttributeLayerInput> | undefined;
+  weld: boolean;
+} {
+  if (toleranceOrOptions && typeof toleranceOrOptions === "object") {
+    const opts = toleranceOrOptions;
+    return {
+      tolerance: opts.tolerance ?? 1e-10,
+      layers: opts.layers,
+      weld: opts.weld ?? true,
+    };
+  }
+  return {
+    tolerance: toleranceOrOptions ?? 1e-10,
+    layers,
+    weld: true,
+  };
 }
 
 /**

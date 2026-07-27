@@ -13,7 +13,8 @@ import { removeFace } from '../operations/removeFace';
 import { cutFace } from '../operations/cutFace';
 import { splitEdge } from '../operations/splitEdge';
 import { setFromGeometry } from '../operations/setFromGeometry';
-import { setFromPolygons } from '../operations/setFromPolygons';
+import { setFromPolygons, resolvePolygonOptions } from '../operations/setFromPolygons';
+import type { FromPolygonsOptions } from '../operations/setFromPolygons';
 import { toGeometry } from '../operations/toGeometry';
 import { tessellate } from '../operations/tessellate';
 import { updateFaceNormal } from '../operations/updateFaceNormal';
@@ -80,13 +81,19 @@ export class HalfedgeDS {
    *
    * Clears existing topology first (idempotent).
    *
+   * Accepts either the positional `tolerance` / `layers` arguments or a single
+   * {@link FromPolygonsOptions} bag (e.g. `{ weld: false, layers }`) in their
+   * place. Set `weld: false` to ingest a "pinch" — distinct corner indices that
+   * share an identical position — without position dedup.
+   *
    * @param positions    Flat vertex positions, length = 3 * vertCount.
    * @param faceOffsets  Run-length face table: polygon i's corners are
    *                     `cornerVerts[faceOffsets[i] .. faceOffsets[i+1])`.
    *                     Length = faceCount + 1, `faceOffsets[0] === 0`,
    *                     strictly increasing.
    * @param cornerVerts  Per-corner vertex index into `positions`.
-   * @param tolerance    Vertex-merge tolerance (default = 1e-10).
+   * @param tolerance    Vertex-merge tolerance (default = 1e-10). Ignored when
+   *                     `weld` is false.
    * @param layers       Optional per-corner attribute layers (uv/normal/tangent,
    *                     arbitrary itemSize), aligned to the run-length corner
    *                     order of `cornerVerts`.
@@ -95,10 +102,24 @@ export class HalfedgeDS {
       positions: Float32Array | number[],
       faceOffsets: number[],
       cornerVerts: number[],
-      tolerance = 1e-10,
-      layers?: Record<string, AttributeLayerInput>) {
+      tolerance: number,
+      layers?: Record<string, AttributeLayerInput>): this;
+  setFromPolygons(
+      positions: Float32Array | number[],
+      faceOffsets: number[],
+      cornerVerts: number[],
+      options: FromPolygonsOptions): this;
+  setFromPolygons(
+      positions: Float32Array | number[],
+      faceOffsets: number[],
+      cornerVerts: number[],
+      toleranceOrOptions: number | FromPolygonsOptions = 1e-10,
+      layers?: Record<string, AttributeLayerInput>): this {
     this.invalidateTessellation();
-    return setFromPolygons(this, positions, faceOffsets, cornerVerts, tolerance, layers);
+    const opts = resolvePolygonOptions(toleranceOrOptions, layers);
+    setFromPolygons(this, positions, faceOffsets, cornerVerts,
+      opts.tolerance, opts.layers, opts.weld);
+    return this;
   }
 
   /**
@@ -462,9 +483,14 @@ export class HalfedgeDS {
    * per-polygon index loops into a run-length face table and delegates to
    * {@link HalfedgeDS.setFromPolygons}.
    *
+   * Accepts either the positional `tolerance` / `layers` arguments or a single
+   * {@link FromPolygonsOptions} bag (e.g. `{ weld: false, layers }`) in their
+   * place.
+   *
    * @param positions Flat vertex positions, length = 3 * vertCount.
    * @param polygons  Per-polygon corner-vertex-index loops.
-   * @param tolerance Vertex-merge tolerance (default = 1e-10).
+   * @param tolerance Vertex-merge tolerance (default = 1e-10). Ignored when
+   *                  `weld` is false.
    * @param layers    Optional per-corner attribute layers, aligned to the
    *                  concatenated polygon corner order (== run-length order).
    * @returns A new HalfedgeDS built from the polygons.
@@ -472,7 +498,16 @@ export class HalfedgeDS {
   static fromPolygons(
       positions: Float32Array | number[],
       polygons: number[][],
-      tolerance = 1e-10,
+      tolerance: number,
+      layers?: Record<string, AttributeLayerInput>): HalfedgeDS;
+  static fromPolygons(
+      positions: Float32Array | number[],
+      polygons: number[][],
+      options: FromPolygonsOptions): HalfedgeDS;
+  static fromPolygons(
+      positions: Float32Array | number[],
+      polygons: number[][],
+      toleranceOrOptions: number | FromPolygonsOptions = 1e-10,
       layers?: Record<string, AttributeLayerInput>): HalfedgeDS {
     const faceOffsets = [0];
     const cornerVerts = new Array<number>();
@@ -483,7 +518,8 @@ export class HalfedgeDS {
       faceOffsets.push(cornerVerts.length);
     }
     const struct = new HalfedgeDS();
-    struct.setFromPolygons(positions, faceOffsets, cornerVerts, tolerance, layers);
+    const opts = resolvePolygonOptions(toleranceOrOptions, layers);
+    struct.setFromPolygons(positions, faceOffsets, cornerVerts, opts);
     return struct;
   }
 
