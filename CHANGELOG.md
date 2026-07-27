@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.5.0](https://github.com/sherif-magdy/three-mesh-halfedge/compare/v2.4.0...v2.5.0) (2026-07-27)
+
+
+### Features
+
+* **polygons:** add no-weld (weld:false) ingestion mode to fromPolygons ([37bd5c5](https://github.com/sherif-magdy/three-mesh-halfedge/commit/37bd5c5c99654ea53955e08612507f9287944baf))
+
 ## [2.4.0](https://github.com/sherif-magdy/three-mesh-halfedge/compare/v2.3.0...v2.4.0) (2026-07-23)
 
 
