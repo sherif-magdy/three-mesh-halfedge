@@ -37,6 +37,7 @@
 ### Bug Fixes
 
 * **operations:** dissolve self-sided spikes in limitedDissolve ([ec01183](https://github.com/sherif-magdy/three-mesh-halfedge/commit/ec011832f23469f6eef3dffbea7228d2a03d988c))
+* **operations:** keep limitedDissolve near-linear on large coplanar meshes with inexact (float-noisy) coordinates — the larger loop now survives each merge (union-by-size), so re-owning the absorbed loop costs O(min(|a|, |b|)) instead of re-walking the growing region per merge (quadratic)
 
 ## [2.3.0](https://github.com/sherif-magdy/three-mesh-halfedge/compare/v2.2.0...v2.3.0) (2026-07-22)
 
