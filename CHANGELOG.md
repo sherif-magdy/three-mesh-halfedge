@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.5.1](https://github.com/sherif-magdy/three-mesh-halfedge/compare/v2.5.0...v2.5.1) (2026-08-17)
+
+
+### Bug Fixes
+
+* **operations:** keep limitedDissolve near-linear on large coplanar meshes ([83dfc54](https://github.com/sherif-magdy/three-mesh-halfedge/commit/83dfc54ff389d995577b887d34a62fd40f91fefa))
+
 ## [2.5.0](https://github.com/sherif-magdy/three-mesh-halfedge/compare/v2.4.0...v2.5.0) (2026-07-27)
 
 
