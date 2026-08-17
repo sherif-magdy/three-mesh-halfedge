@@ -4,6 +4,8 @@ build-examples
 node_modules
 doc
 .vscode
+.mimosa
+ai-docs
 coverage
 CLAUDE.md
 .serena
