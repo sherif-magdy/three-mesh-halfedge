@@ -166,10 +166,12 @@ export function computeVerticesIndexArray(
   const indexArray = new Array<number>();
 
   for (let i=0; i < positions.count; i++) {
-    // Compute a hash based on the vertex position rounded to a given precision
+    // Compute a hash based on the vertex position rounded to a given precision.
+    // The separator keeps digit patterns of different axes from aliasing into
+    // the same key (x=-12,y=3456 vs x=123,y=456 both concatenated to "1234560").
     let hash = "";
     for (let j=0; j<3; j++) {
-      hash += `${Math.round(positions.array[i*3+j] * shiftMultiplier)}`;
+      hash += `${Math.round(positions.array[i*3+j] * shiftMultiplier)}|`;
     }
 
     let vertexIndex = hashMap.get(hash);
