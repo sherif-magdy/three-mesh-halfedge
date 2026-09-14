@@ -4,6 +4,7 @@
  */
 
 import { HalfedgeDS } from '../../src/core/HalfedgeDS';
+import { Vertex } from '../../src/core/Vertex';
 import { generatorToArray } from './testutils';
 
 /**
@@ -40,6 +41,23 @@ export function validateFaceLoops(struct: HalfedgeDS) {
     for (const he of halfedges) {
       expect(he.face).toBe(face);
     }
+  }
+}
+
+/**
+ * Validates that no face's boundary loop visits the same vertex twice
+ * (no pinched / self-touching faces, e.g. after a dissolve pass).
+ */
+export function validateNoRepeatedFaceVertices(struct: HalfedgeDS) {
+  for (const face of struct.faces) {
+    const seen = new Set<Vertex>();
+    const start = face.halfedge;
+    let he = start;
+    do {
+      expect(seen.has(he.vertex)).toBe(false);
+      seen.add(he.vertex);
+      he = he.next;
+    } while (he !== start);
   }
 }
 

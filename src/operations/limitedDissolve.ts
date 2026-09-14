@@ -138,8 +138,13 @@ class EdgeHeap {
  *    rotated: a coplanar merge changes no cost, so the walk is skipped and
  *    dissolving a large flat region stays linear instead of quadratic.
  *
- * Delimit: NORMAL only. MATERIAL/SEAM/SHARP/UV delimiters and the geometric
- * `USE_DEGENERATE_CHECK` are deferred — topology stays valid without them.
+ * Delimit: NORMAL only. MATERIAL/SEAM/SHARP/UV delimiters are deferred. A
+ * merge that would leave a repeated vertex in the joined loop is refused and
+ * its edge stays undissolved — pinched faces break downstream polygon
+ * re-ingest — except where the two loops already share a boundary chain off
+ * the dying pair: those repeats collapse into self-sided spikes, which are
+ * spliced out immediately after the merge instead of waiting on a later
+ * heap pop that may never come.
  *
  * @param struct      Structure to mutate.
  * @param angleLimit  Radians; edges at <= this dihedral angle dissolve.
@@ -170,7 +175,17 @@ export function limitedDissolve(struct: HalfedgeDS, angleLimit: number): void {
   // Boundary-loop length per face, maintained alongside the normals (seeded
   // by the same walk) so the merge's survivor choice stays O(1).
   const loopLens = new Map<Face, number>();
+  // Corner sets per face: the O(1) "is this vertex a corner of that face"
+  // probe used by the degenerate-merge check. Seeded with the normals and
+  // maintained exactly where loop membership changes (absorbs, spike heals,
+  // endpoint isolation).
+  const faceVerts = new Map<Face, Set<Vertex>>();
   const before = new Vector3();
+  // Scratch buffers reused across degenerate-merge checks to keep the
+  // candidate path allocation-free.
+  const chainFree: Vertex[] = [];
+  const chainVerts = new Set<Vertex>();
+  const ordered: Halfedge[] = [];
 
   // Lazy Newell initialization, shared by seeding and the first merge of a
   // face (every face bordering a manifold edge is ensured by the seed pass).
@@ -184,18 +199,21 @@ export function limitedDissolve(struct: HalfedgeDS, angleLimit: number): void {
     let he = face.halfedge;
     const start = he;
     let len = 0;
+    const verts = new Set<Vertex>();
     do {
       const a = he.vertex.position;
       const b = he.next.vertex.position;
       nx += (a.y - b.y) * (a.z + b.z);
       ny += (a.z - b.z) * (a.x + b.x);
       nz += (a.x - b.x) * (a.y + b.y);
+      verts.add(he.vertex);
       len += 1;
       he = he.next;
     } while (he !== start);
     nsums.set(face, new Vector3(nx, ny, nz));
     units.set(face, new Vector3(nx, ny, nz).normalize());
     loopLens.set(face, len);
+    faceVerts.set(face, verts);
   };
 
   const heap = new EdgeHeap(halfedgeCount);
@@ -244,12 +262,15 @@ export function limitedDissolve(struct: HalfedgeDS, angleLimit: number): void {
 
     // Re-own the absorbed loop (except the dying twin): its halfedges join
     // the survivor's loop and must reference the surviving face. The
-    // survivor's own halfedges already do.
+    // survivor's own halfedges already do. Its vertices join the survivor's
+    // corner set for the degenerate-merge probe.
+    const survivorVerts = faceVerts.get(survivor)!;
     let loopHe = absorbed.halfedge;
     const loopStart = loopHe;
     do {
       if (loopHe !== twin) {
         loopHe.face = survivor;
+        survivorVerts.add(loopHe.vertex);
       }
       loopHe = loopHe.next;
     } while (loopHe !== loopStart);
@@ -261,6 +282,7 @@ export function limitedDissolve(struct: HalfedgeDS, angleLimit: number): void {
     const v1 = he.vertex;
     if (twin.next === he) {
       v1.halfedge = null; // v1 is now isolated
+      survivorVerts.delete(v1);
     } else {
       v1.halfedge = twin.next;
       he.prev.next = twin.next;
@@ -269,6 +291,7 @@ export function limitedDissolve(struct: HalfedgeDS, angleLimit: number): void {
     const v2 = twin.vertex;
     if (he.next === twin) {
       v2.halfedge = null; // v2 is now isolated
+      survivorVerts.delete(v2);
     } else {
       v2.halfedge = he.next;
       he.next.prev = twin.prev;
@@ -283,6 +306,7 @@ export function limitedDissolve(struct: HalfedgeDS, angleLimit: number): void {
     units.delete(absorbed);
     loopLens.set(survivor, loopLens.get(survivor)! + loopLens.get(absorbed)! - 2);
     loopLens.delete(absorbed);
+    faceVerts.delete(absorbed);
     const unit = units.get(survivor)!.copy(nsums.get(survivor)!).normalize();
 
     markDead(he);
@@ -341,10 +365,89 @@ export function limitedDissolve(struct: HalfedgeDS, angleLimit: number): void {
     }
 
     loopLens.set(face, loopLens.get(face)! - 2);
+    faceVerts.get(face)!.delete(tip);
 
     markDead(he);
     markDead(twin);
     staleTips.push(tip, other);
+  };
+
+  /**
+   * Inspects a candidate merge for repeated vertices in the joined loop.
+   * One walk over the smaller loop: shared edges fall out of the twins
+   * (O(1) per edge) and corner membership comes from the per-face vertex
+   * sets (O(1) per vertex). Shared edges must hang in unbroken chains off
+   * the dying pair's endpoints — each becomes a self-sided two-corner spike
+   * after the splice and is returned in heal order (nearest the dying pair
+   * first). A shared vertex off those chains, or a detached shared run,
+   * would leave a genuine chord pinch: the merge is refused (null). Exact
+   * identity comparison — ingest welds coincident positions into one Vertex.
+   */
+  const findMergeSpikes = (he: Halfedge): Halfedge[] | null => {
+    const faceP = he.face!;
+    const faceQ = he.twin.face!;
+    const smallIsP = loopLens.get(faceP)! <= loopLens.get(faceQ)!;
+    const smallFace = smallIsP ? faceP : faceQ;
+    const bigFace = smallIsP ? faceQ : faceP;
+    const bigVerts = faceVerts.get(bigFace)!;
+    const smallVerts = faceVerts.get(smallFace)!;
+    const v1 = he.vertex;
+    const v2 = he.twin.vertex;
+
+    // Shared vertices beyond the dying endpoints, straight from the corner
+    // sets. None means the merge is trivially clean — no repeated vertex of
+    // any kind is possible.
+    chainFree.length = 0;
+    const dying = he.face === smallFace ? he : he.twin;
+    if (loopLens.get(smallFace) === 3) {
+      const apex = dying.next.next.vertex;
+      if (apex !== v1 && apex !== v2 && bigVerts.has(apex)) {
+        chainFree.push(apex);
+      }
+    } else {
+      for (const k of smallVerts) {
+        if (k !== v1 && k !== v2 && bigVerts.has(k)) {
+          chainFree.push(k);
+        }
+      }
+    }
+    if (chainFree.length === 0) {
+      return [];
+    }
+
+    // Otherwise the shared vertices must all lie on the shared-edge run
+    // hanging off the dying pair — walk that run outward in both loop
+    // directions, collecting each shared edge's spike in heal order. Every
+    // shared vertex the run does not cover is a genuine chord pinch.
+    chainVerts.clear();
+    chainVerts.add(v1);
+    chainVerts.add(v2);
+    ordered.length = 0;
+    let e = dying.next;
+    while (e.twin.face === bigFace) {
+      ordered.push(e);
+      chainVerts.add(e.next.vertex);
+      e = e.next;
+      if (e === dying) {
+        return null; // the loops share their entire boundary
+      }
+    }
+    e = dying.prev;
+    while (e.twin.face === bigFace) {
+      ordered.push(e);
+      chainVerts.add(e.vertex);
+      e = e.prev;
+      if (e === dying) {
+        return null; // the loops share their entire boundary
+      }
+    }
+
+    for (const k of chainFree) {
+      if (!chainVerts.has(k)) {
+        return null; // shared vertex detached from the dying pair's run
+      }
+    }
+    return ordered;
   };
 
   while (heap.size > 0 && heap.topCost() <= threshold) {
@@ -363,7 +466,16 @@ export function limitedDissolve(struct: HalfedgeDS, angleLimit: number): void {
       continue;
     }
 
+    const spikes = findMergeSpikes(he);
+    if (spikes === null) {
+      heap.update(edgeId, COST_INVALID);
+      continue;
+    }
+
     mergePair(he);
+    for (const spike of spikes) {
+      removeSelfSidedSpike(spike);
+    }
   }
 
   // Apply everything the drain deferred, one batch per container: filter the
