@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.5.2](https://github.com/sherif-magdy/three-mesh-halfedge/compare/v2.5.1...v2.5.2) (2026-09-15)
+
+
+### Bug Fixes
+
+* **operations:** refuse limitedDissolve merges that revisit a vertex ([4dceb40](https://github.com/sherif-magdy/three-mesh-halfedge/commit/4dceb40ae90bd6d5df2c0ae0760655746d241f55))
+* **operations:** separate weld hash digits in setFromGeometry ([56fe50e](https://github.com/sherif-magdy/three-mesh-halfedge/commit/56fe50eb30e4f80806225e2d27d2f9ab1cef4c7c))
+
 ## [2.5.1](https://github.com/sherif-magdy/three-mesh-halfedge/compare/v2.5.0...v2.5.1) (2026-08-17)
 
 
